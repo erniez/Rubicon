@@ -9,4 +9,4 @@ build/
 venv/
 .mypy_cache/
 .pytest_cache/
-.rubicon/snapshots/
+.rubicon_data/

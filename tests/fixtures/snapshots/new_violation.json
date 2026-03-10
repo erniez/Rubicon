@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-03-02T12:00:00+00:00",
+  "commit_hash": "ddd444",
+  "nodes": [
+    {"id": "ui/screen.py", "file_path": "ui/screen.py", "language": "python", "layer": "presentation", "symbols": ["Screen"]},
+    {"id": "ui/widget.py", "file_path": "ui/widget.py", "language": "python", "layer": "presentation", "symbols": ["Widget"]},
+    {"id": "models/user.py", "file_path": "models/user.py", "language": "python", "layer": "domain", "symbols": ["User"]},
+    {"id": "models/order.py", "file_path": "models/order.py", "language": "python", "layer": "domain", "symbols": ["Order"]},
+    {"id": "db/repo.py", "file_path": "db/repo.py", "language": "python", "layer": "data", "symbols": ["Repo"]}
+  ],
+  "edges": [
+    {"source": "ui/screen.py", "target": "models/user.py", "relationships": [{"source": "Screen", "target": "User", "type": "import", "source_file": "ui/screen.py", "line_number": 1}]},
+    {"source": "ui/screen.py", "target": "ui/widget.py", "relationships": [{"source": "Screen", "target": "Widget", "type": "import", "source_file": "ui/screen.py", "line_number": 2}]},
+    {"source": "ui/widget.py", "target": "models/user.py", "relationships": [{"source": "Widget", "target": "User", "type": "ownership", "source_file": "ui/widget.py", "line_number": 5}]},
+    {"source": "models/user.py", "target": "models/order.py", "relationships": [{"source": "User", "target": "Order", "type": "import", "source_file": "models/user.py", "line_number": 1}]},
+    {"source": "models/order.py", "target": "db/repo.py", "relationships": [{"source": "Order", "target": "Repo", "type": "import", "source_file": "models/order.py", "line_number": 1}]},
+    {"source": "db/repo.py", "target": "models/user.py", "relationships": [{"source": "Repo", "target": "User", "type": "inheritance", "source_file": "db/repo.py", "line_number": 3}]}
+  ],
+  "violations": [
+    {"rule": "no_upward_dependency", "severity": "warning", "source_node_id": "db/repo.py", "target_node_id": "models/user.py", "message": "data imports from domain", "relationship": null},
+    {"rule": "no_layer_skipping", "severity": "warning", "source_node_id": "ui/screen.py", "target_node_id": "db/repo.py", "message": "presentation directly references data", "relationship": null}
+  ],
+  "layer_map": {
+    "ui/screen.py": "presentation",
+    "ui/widget.py": "presentation",
+    "models/user.py": "domain",
+    "models/order.py": "domain",
+    "db/repo.py": "data"
+  }
+}

@@ -1,9 +1,12 @@
 """Terminal violation reporter with color-coded output."""
 
+from __future__ import annotations
+
 from rich.console import Console
 from rich.text import Text
 
 from rubicon.graph.models import Severity, Violation
+from rubicon.snapshot.diff import SnapshotDiff
 
 _SEVERITY_ORDER = [Severity.ERROR, Severity.WARNING, Severity.INFO]
 
@@ -14,9 +17,22 @@ _SEVERITY_STYLE = {
 }
 
 
-def report_violations(violations: list[Violation], console: Console | None = None) -> None:
+def report_violations(
+    violations: list[Violation],
+    console: Console | None = None,
+    diff: SnapshotDiff | None = None,
+) -> None:
     """Print violations to the terminal, grouped by severity."""
     console = console or Console()
+
+    if diff is not None:
+        _print_diff_banner(diff, console)
+
+    # Build a set of new violation keys for tagging
+    new_viol_keys: set[tuple[str, str, str | None]] = set()
+    if diff is not None:
+        for v in diff.new_violations:
+            new_viol_keys.add((v["rule"], v["source_node_id"], v.get("target_node_id")))
 
     grouped: dict[Severity, list[Violation]] = {s: [] for s in _SEVERITY_ORDER}
     for v in violations:
@@ -37,10 +53,28 @@ def report_violations(violations: list[Violation], console: Console | None = Non
             line.append(f": {v.message}")
             if v.relationship and v.relationship.line_number:
                 line.append(f" (line {v.relationship.line_number})", style="dim")
+            if (v.rule, v.source_node_id, v.target_node_id) in new_viol_keys:
+                line.append(" [NEW]", style="bold red")
+            console.print(line)
+
+    # Show resolved violations if in diff mode
+    if diff is not None and diff.resolved_violations:
+        console.print(Text(f"\nRESOLVED ({len(diff.resolved_violations)})", style="bold green"))
+        for v in diff.resolved_violations:
+            line = Text("  ✓ ", style="green")
+            line.append(f"{v['rule']}", style="bold")
+            line.append(f": {v['message']}")
+            line.append(" [RESOLVED]", style="bold green")
             console.print(line)
 
     console.print()
     _print_summary(grouped, console)
+
+
+def _print_diff_banner(diff: SnapshotDiff, console: Console) -> None:
+    """Print the diff summary banner at the top."""
+    banner = Text(f"\nSince last snapshot: {diff.summary}", style="bold")
+    console.print(banner)
 
 
 def _print_summary(

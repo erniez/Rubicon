@@ -10,6 +10,9 @@ from rubicon.graph.models import Severity
 from rubicon.mermaid import generate_mermaid
 from rubicon.reporter import report_violations
 from rubicon.rules.engine import run_rules
+from rubicon.snapshot.diff import SnapshotDiff, diff_snapshots
+from rubicon.snapshot.models import graph_to_snapshot
+from rubicon.snapshot.store import get_commit_hash, load_latest_snapshot, save_snapshot
 
 app = typer.Typer(
     name="rubicon",
@@ -45,6 +48,16 @@ def analyze(
         "--graph-only",
         help="Crawl and parse, print graph summary, skip rule checking.",
     ),
+    diff: bool = typer.Option(
+        False,
+        "--diff",
+        help="Compare against the last snapshot and show changes.",
+    ),
+    no_snapshot: bool = typer.Option(
+        False,
+        "--no-snapshot",
+        help="Skip saving a snapshot after analysis.",
+    ),
 ) -> None:
     """Analyze a project's architecture."""
     typer.echo(f"Analyzing: {path}")
@@ -67,6 +80,20 @@ def analyze(
 
     violations = run_rules(graph, config)
 
+    # Snapshot: diff against previous if requested
+    snapshot_diff: SnapshotDiff | None = None
+    if diff:
+        previous = load_latest_snapshot(path)
+        commit_hash = get_commit_hash(path)
+        current_snapshot = graph_to_snapshot(graph, violations, config, commit_hash)
+        snapshot_diff = diff_snapshots(previous, current_snapshot)
+
+    # Snapshot: save unless suppressed
+    if not no_snapshot:
+        commit_hash = get_commit_hash(path)
+        snapshot = graph_to_snapshot(graph, violations, config, commit_hash)
+        save_snapshot(path, snapshot)
+
     if format == "mermaid":
         mermaid_output = generate_mermaid(graph, config, violations)
         if output:
@@ -79,7 +106,7 @@ def analyze(
             typer.echo(mermaid_output)
         raise typer.Exit()
 
-    report_violations(violations)
+    report_violations(violations, diff=snapshot_diff)
 
     has_errors = any(v.severity == Severity.ERROR for v in violations)
     raise typer.Exit(code=1 if has_errors else 0)
