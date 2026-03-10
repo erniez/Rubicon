@@ -1,0 +1,49 @@
+layers:
+  cli:
+    directories:
+      - rubicon/cli.py
+    color: "#4A90D9"
+  crawler:
+    directories:
+      - rubicon/crawler/
+    color: "#50C878"
+  parser:
+    directories:
+      - rubicon/parser/
+    color: "#E8A838"
+  graph:
+    directories:
+      - rubicon/graph/
+    color: "#D94A4A"
+  rules:
+    directories:
+      - rubicon/rules/
+    color: "#9B59B6"
+  config:
+    directories:
+      - rubicon/classifier/
+    color: "#1ABC9C"
+  output:
+    directories:
+      - rubicon/reporter.py
+      - rubicon/mermaid.py
+    color: "#F39C12"
+
+layer_order:
+  - cli
+  - output
+  - rules
+  - graph
+  - parser
+  - crawler
+  - config
+
+rules:
+  - no_upward_dependency
+  - no_layer_skipping
+  - no_circular_imports
+  - no_circular_ownership
+  - inheritance_flows_downward
+  - dependency_inversion
+  - single_responsibility
+  - orphan_detection

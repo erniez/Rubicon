@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rubicon"
+version = "0.1.0"
+description = "Language-agnostic code architecture visualization and design rule checking"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.9",
+    "networkx>=3.0",
+    "tree-sitter>=0.23",
+    "tree-sitter-python>=0.23",
+    "tree-sitter-typescript>=0.23",
+    "tree-sitter-kotlin>=0.1",
+    "tree-sitter-swift>=0.0.1",
+    "pathspec>=0.11",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.23",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+rubicon = "rubicon.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["rubicon*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

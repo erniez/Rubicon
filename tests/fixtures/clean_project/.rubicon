@@ -1,0 +1,15 @@
+layers:
+  presentation:
+    directories:
+      - ui/
+  domain:
+    directories:
+      - domain/
+
+layer_order:
+  - presentation
+  - domain
+
+rules:
+  - no_upward_dependency
+  - inheritance_flows_downward

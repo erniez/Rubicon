@@ -1,0 +1,28 @@
+layers:
+  presentation:
+    directories:
+      - ui/
+    color: "#4A90D9"
+  domain:
+    directories:
+      - domain/
+    color: "#50C878"
+  data:
+    directories:
+      - data/
+    color: "#E8A838"
+
+layer_order:
+  - presentation
+  - domain
+  - data
+
+rules:
+  - no_upward_dependency
+  - no_layer_skipping
+  - inheritance_flows_downward
+  - no_circular_ownership
+  - no_circular_imports
+  - dependency_inversion
+  - single_responsibility
+  - orphan_detection
