@@ -1,0 +1,171 @@
+"""FastAPI visualization server for Rubicon.
+
+Serves a static single-page app at ``/`` and JSON API endpoints
+under ``/api/``.  The graph, config, violations, and optional diff
+are injected at startup via ``start_server()`` or ``configure()``.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any
+
+import networkx as nx
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from rubicon.classifier.config import RubiconConfig
+from rubicon.graph.models import Violation
+from rubicon.snapshot.diff import SnapshotDiff
+from rubicon.viz.api import diff_overlay, file_level_view, layer_summary, ratsnest_view
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level state — populated by configure() before the server starts
+# ---------------------------------------------------------------------------
+
+_graph: nx.DiGraph | None = None
+_config: RubiconConfig | None = None
+_violations: list[Violation] = []
+_diff: SnapshotDiff | None = None
+
+STATIC_DIR = Path(__file__).parent / "static"
+
+
+def configure(
+    graph: nx.DiGraph,
+    config: RubiconConfig,
+    violations: list[Violation],
+    diff: SnapshotDiff | None = None,
+) -> None:
+    """Set the module-level state used by the API endpoints.
+
+    Must be called before any endpoint is hit.
+    """
+    global _graph, _config, _violations, _diff  # noqa: PLW0603
+    _graph = graph
+    _config = config
+    _violations = violations
+    _diff = diff
+
+
+def _require_state() -> tuple[nx.DiGraph, RubiconConfig, list[Violation]]:
+    """Return the configured state or raise if not configured."""
+    if _graph is None or _config is None:
+        raise RuntimeError(
+            "Server not configured. Call configure() before serving requests."
+        )
+    return _graph, _config, _violations
+
+
+# ---------------------------------------------------------------------------
+# FastAPI application
+# ---------------------------------------------------------------------------
+
+app = FastAPI(title="Rubicon Visualization Server")
+
+
+# --- API endpoints --------------------------------------------------------
+
+@app.get("/api/layers")
+def api_layers() -> dict:
+    """Level 1 — layer summary."""
+    graph, config, violations = _require_state()
+    return layer_summary(graph, config, violations)
+
+
+@app.get("/api/files")
+def api_files(
+    layer: str | None = None,
+    source_layer: str | None = None,
+    target_layer: str | None = None,
+) -> dict:
+    """Level 2 — file-level view.
+
+    Query params:
+        layer — single-layer drill-down
+        source_layer + target_layer — cross-layer drill-down
+    """
+    graph, config, violations = _require_state()
+    return file_level_view(
+        graph, config, violations,
+        layer=layer,
+        source_layer=source_layer,
+        target_layer=target_layer,
+    )
+
+
+@app.get("/api/file/{file_id:path}")
+def api_file(file_id: str) -> dict:
+    """Level 3 — ratsnest view for a single file."""
+    graph, config, violations = _require_state()
+    result = ratsnest_view(graph, config, violations, file_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"File not found: {file_id}")
+    return result
+
+
+@app.get("/api/diff")
+def api_diff() -> dict:
+    """Diff overlay data (empty if no diff mode)."""
+    return diff_overlay(_diff)
+
+
+@app.get("/api/config")
+def api_config() -> dict:
+    """Layer colors, layer order, and rule names."""
+    _, config, _ = _require_state()
+
+    layer_colors: dict[str, str] = {}
+    for name, lc in config.layers.items():
+        layer_colors[name] = lc.color if lc.color else ""
+
+    return {
+        "layer_order": config.layer_order,
+        "layer_colors": layer_colors,
+        "rules": config.rules,
+    }
+
+
+# --- Static file serving ---------------------------------------------------
+
+# Mount static files last so API routes take priority.
+# Only mount if the static directory exists (it may not during tests).
+if STATIC_DIR.is_dir():
+    @app.get("/")
+    async def index() -> FileResponse:
+        index_path = STATIC_DIR / "index.html"
+        if index_path.is_file():
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="index.html not found")
+
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# ---------------------------------------------------------------------------
+# Server entry point
+# ---------------------------------------------------------------------------
+
+def start_server(
+    graph: nx.DiGraph,
+    config: RubiconConfig,
+    violations: list[Violation],
+    diff: SnapshotDiff | None = None,
+    port: int = 8742,
+) -> None:
+    """Configure module state and start the uvicorn server.
+
+    This is a blocking call — it runs until the server is stopped.
+    """
+    configure(graph, config, violations, diff)
+    logger.info("Starting Rubicon visualization server on port %d", port)
+    uvicorn.run(
+        app,
+        host="127.0.0.1",
+        port=port,
+        log_level="info",
+    )

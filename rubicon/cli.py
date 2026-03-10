@@ -58,6 +58,16 @@ def analyze(
         "--no-snapshot",
         help="Skip saving a snapshot after analysis.",
     ),
+    serve: bool = typer.Option(
+        False,
+        "--serve",
+        help="Start the visualization server and open the browser.",
+    ),
+    port: int = typer.Option(
+        8742,
+        "--port",
+        help="Port for the visualization server.",
+    ),
 ) -> None:
     """Analyze a project's architecture."""
     typer.echo(f"Analyzing: {path}")
@@ -104,6 +114,13 @@ def analyze(
             typer.echo(f"Mermaid diagram written to {output}")
         else:
             typer.echo(mermaid_output)
+        raise typer.Exit()
+
+    if serve:
+        from rubicon.viz.server import start_server
+
+        typer.echo(f"Starting visualization server on http://127.0.0.1:{port}")
+        start_server(graph, config, violations, diff=snapshot_diff, port=port)
         raise typer.Exit()
 
     report_violations(violations, diff=snapshot_diff)
