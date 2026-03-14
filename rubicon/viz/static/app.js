@@ -1132,6 +1132,19 @@
 
             badges = aboveBadges.concat(belowBadges).concat(sideBadges);
 
+            // Compute total unique connected files per badge
+            badges.forEach(function (badge) {
+                var seen = {};
+                badge.outbound_files.concat(badge.inbound_files).forEach(function (fid) {
+                    seen[fid] = true;
+                });
+                badge.totalCount = Object.keys(seen).length;
+            });
+
+            function badgeLabel(d) {
+                return d.layer + " (" + (d.totalCount || 0) + ")";
+            }
+
             // Build connector data: one connector per file→badge link
             badges.forEach(function (badge) {
                 badge.outbound_files.forEach(function (fileId) {
@@ -1195,9 +1208,9 @@
                 });
 
             badgeSelection.append("rect")
-                .attr("x", function (d) { return -(d.layer.length * 4 + 16); })
+                .attr("x", function (d) { return -(badgeLabel(d).length * 3.5 + 12); })
                 .attr("y", -badgeH / 2)
-                .attr("width", function (d) { return d.layer.length * 8 + 32; })
+                .attr("width", function (d) { return badgeLabel(d).length * 7 + 24; })
                 .attr("height", badgeH)
                 .attr("rx", 14)
                 .attr("ry", 14)
@@ -1212,7 +1225,7 @@
                 .attr("fill", function (d) { return d.color; })
                 .attr("font-size", "12px")
                 .attr("font-weight", "600")
-                .text(function (d) { return d.layer; });
+                .text(badgeLabel);
 
             // Render connector paths (will be updated in tick)
             var connectorSelection = connectorGroup.selectAll("path")
