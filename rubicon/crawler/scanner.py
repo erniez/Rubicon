@@ -9,7 +9,7 @@ from rubicon.crawler.ignore import load_gitignore
 EXTENSION_MAP: dict[str, str] = {
     ".py": "python",
     ".ts": "typescript",
-    ".tsx": "typescript",
+    ".tsx": "tsx",
     ".js": "javascript",
     ".jsx": "javascript",
     ".kt": "kotlin",

@@ -108,32 +108,38 @@ def _resolve_target(graph: nx.DiGraph, rel: Relationship) -> str:
 
 def _import_path_candidates(module: str) -> list[str]:
     """Generate possible file paths for a module import string."""
+    candidates: list[str] = []
+
+    # Handle @/ path alias (commonly mapped to src/ in tsconfig)
+    if module.startswith("@/"):
+        alias_path = "src/" + module[2:]
+        candidates.extend(_path_variants(alias_path))
+
     # Convert dotted module to path: "foo.bar" -> "foo/bar"
     path_base = module.replace(".", "/")
-
-    candidates = [
-        f"{path_base}.py",
-        f"{path_base}.ts",
-        f"{path_base}.kt",
-        f"{path_base}.swift",
-        f"{path_base}/index.ts",
-        f"{path_base}/__init__.py",
-        path_base,
-    ]
+    candidates.extend(_path_variants(path_base))
 
     # Handle relative imports: "./foo" -> "foo"
     if module.startswith("./") or module.startswith("../"):
         clean = module.lstrip("./")
-        candidates.extend([
-            f"{clean}.py",
-            f"{clean}.ts",
-            f"{clean}.kt",
-            f"{clean}.swift",
-            f"{clean}/index.ts",
-            clean,
-        ])
+        candidates.extend(_path_variants(clean))
 
     return candidates
+
+
+def _path_variants(base: str) -> list[str]:
+    """Generate file extension variants for a base path."""
+    return [
+        f"{base}.py",
+        f"{base}.ts",
+        f"{base}.tsx",
+        f"{base}.kt",
+        f"{base}.swift",
+        f"{base}/index.ts",
+        f"{base}/index.tsx",
+        f"{base}/__init__.py",
+        base,
+    ]
 
 
 def graph_summary(graph: nx.DiGraph) -> str:

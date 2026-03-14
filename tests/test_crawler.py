@@ -15,7 +15,7 @@ class TestDetectLanguage:
         assert detect_language(Path("index.ts")) == "typescript"
 
     def test_tsx(self) -> None:
-        assert detect_language(Path("App.tsx")) == "typescript"
+        assert detect_language(Path("App.tsx")) == "tsx"
 
     def test_kotlin(self) -> None:
         assert detect_language(Path("Model.kt")) == "kotlin"

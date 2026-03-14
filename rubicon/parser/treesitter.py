@@ -30,6 +30,7 @@ def _register_adapters() -> None:
         import tree_sitter_typescript as tst
         from rubicon.parser.adapters.typescript import extract_relationships as ts_extract
         _ADAPTERS["typescript"] = (tst.language_typescript, ts_extract)
+        _ADAPTERS["tsx"] = (tst.language_tsx, ts_extract)
     except ImportError:
         logger.debug("tree-sitter-typescript not available")
 
