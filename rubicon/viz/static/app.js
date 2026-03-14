@@ -22,8 +22,104 @@
         sourceLayer: null,    // for Level 2 cross-layer drill-down
         targetLayer: null,    // for Level 2 cross-layer drill-down
         selectedFile: null,   // for Level 3 ratsnest
-        navigating: false     // guard against recursive hashchange events
+        navigating: false,    // guard against recursive hashchange events
+        highlight: null       // id of currently highlighted element (layer name, file id, etc.)
     };
+
+    // ------------------------------------------------------------------
+    // Highlight helpers
+    // ------------------------------------------------------------------
+
+    var DIM_OPACITY = 0.12;
+    var NORMAL_OPACITY_ATTR = "data-normal-opacity";
+
+    /** Apply highlight: brighten connected elements, dim everything else. */
+    function applyHighlight(svg, connectedTest) {
+        svg.selectAll(".layer-block").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 1 : DIM_OPACITY)
+                .style("pointer-events", match ? "auto" : "none");
+        });
+        svg.selectAll(".layer-edge").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? (el.attr(NORMAL_OPACITY_ATTR) || 0.7) : DIM_OPACITY)
+                .style("pointer-events", match ? "auto" : "none");
+        });
+        svg.selectAll(".edge-label, .edge-label-bg").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 1 : DIM_OPACITY);
+        });
+        svg.selectAll(".file-node").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 1 : DIM_OPACITY)
+                .style("pointer-events", match ? "auto" : "none");
+        });
+        svg.selectAll(".file-edge").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 0.8 : DIM_OPACITY)
+                .style("pointer-events", match ? "auto" : "none");
+        });
+        svg.selectAll(".cross-layer-connector").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 0.5 : DIM_OPACITY * 0.5);
+        });
+        svg.selectAll(".cross-layer-badge").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 1 : DIM_OPACITY)
+                .style("pointer-events", match ? "auto" : "none");
+        });
+        svg.selectAll(".ratsnest-neighbor-node").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 1 : DIM_OPACITY)
+                .style("pointer-events", match ? "auto" : "none");
+        });
+        svg.selectAll(".ratsnest-edge, .ratsnest-edge-label").each(function () {
+            var el = d3.select(this);
+            var match = connectedTest(el);
+            el.transition().duration(200)
+                .style("opacity", match ? 0.8 : DIM_OPACITY);
+        });
+    }
+
+    /** Clear all highlights back to normal. */
+    function clearHighlight(svg) {
+        state.highlight = null;
+        svg.selectAll(".layer-block, .file-node, .cross-layer-badge, .ratsnest-neighbor-node, .ratsnest-focus-node")
+            .transition().duration(200)
+            .style("opacity", 1)
+            .style("pointer-events", "auto");
+        svg.selectAll(".layer-edge").each(function () {
+            var el = d3.select(this);
+            el.transition().duration(200)
+                .style("opacity", el.attr(NORMAL_OPACITY_ATTR) || 0.7)
+                .style("pointer-events", "auto");
+        });
+        svg.selectAll(".file-edge").transition().duration(200)
+            .style("opacity", 0.6)
+            .style("pointer-events", "auto");
+        svg.selectAll(".edge-label, .edge-label-bg").transition().duration(200)
+            .style("opacity", 1);
+        svg.selectAll(".cross-layer-connector").transition().duration(200)
+            .style("opacity", 0.35);
+        svg.selectAll(".ratsnest-edge, .ratsnest-edge-label").transition().duration(200)
+            .style("opacity", 0.6);
+    }
 
     // ------------------------------------------------------------------
     // API helpers
@@ -115,6 +211,7 @@
         state.sourceLayer = null;
         state.targetLayer = null;
         state.selectedFile = null;
+        state.highlight = null;
         window.location.hash = "";
         renderLayerDiagram();
         state.navigating = false;
@@ -127,6 +224,7 @@
         state.sourceLayer = sourceLayer || null;
         state.targetLayer = targetLayer || null;
         state.selectedFile = null;
+        state.highlight = null;
 
         if (layer) {
             window.location.hash = "#/layer/" + encodeURIComponent(layer);
@@ -142,6 +240,7 @@
         state.navigating = true;
         state.view = "ratsnest";
         state.selectedFile = fileId;
+        state.highlight = null;
         window.location.hash = "#/file/" + encodeURIComponent(fileId);
         renderRatsnestView();
         state.navigating = false;
@@ -214,6 +313,11 @@
 
         // Use a temporary viewBox so elements can be measured after drawing
         svg.attr("viewBox", "0 0 " + containerW + " " + containerH);
+
+        // Click on empty space clears highlight
+        svg.on("click", function () {
+            if (state.highlight) clearHighlight(svg);
+        });
 
         // Define arrow markers
         var defs = svg.append("defs");
@@ -352,8 +456,39 @@
 
             var g = group.append("g")
                 .attr("class", "layer-block stratum")
+                .attr("data-layer", layer.name)
                 .attr("transform", "translate(" + pos.x + "," + pos.y + ")")
-                .on("click", function () {
+                .on("click", function (event) {
+                    event.stopPropagation();
+                    var svg = d3.select("#layer-diagram");
+                    var layerName = layer.name;
+
+                    if (state.highlight === layerName) {
+                        clearHighlight(svg);
+                        return;
+                    }
+                    state.highlight = layerName;
+
+                    // Find connected layer names via edges
+                    var connected = {};
+                    connected[layerName] = true;
+                    data.edges.forEach(function (e) {
+                        if (e.source === layerName || e.target === layerName) {
+                            connected[e.source] = true;
+                            connected[e.target] = true;
+                        }
+                    });
+
+                    applyHighlight(svg, function (el) {
+                        var dl = el.attr("data-layer");
+                        var ds = el.attr("data-source");
+                        var dt = el.attr("data-target");
+                        if (dl) return !!connected[dl];
+                        if (ds && dt) return (ds === layerName || dt === layerName);
+                        return false;
+                    });
+                })
+                .on("dblclick", function () {
                     navigateToFiles(layer.name, null, null);
                 })
                 .on("mouseover", function (event) {
@@ -456,11 +591,38 @@
 
             var path = group.append("path")
                 .attr("class", "layer-edge " + edgeClass)
+                .attr("data-source", edge.source)
+                .attr("data-target", edge.target)
                 .attr("d", pathData.d)
                 .attr("stroke-width", thickness)
                 .attr("opacity", opacity)
+                .attr(NORMAL_OPACITY_ATTR, opacity)
                 .attr("marker-end", "url(#arrow-" + edgeClass + ")")
-                .on("click", function () {
+                .on("click", function (event) {
+                    event.stopPropagation();
+                    var svg = d3.select("#layer-diagram");
+                    var edgeKey = edge.source + ":" + edge.target;
+
+                    if (state.highlight === edgeKey) {
+                        clearHighlight(svg);
+                        return;
+                    }
+                    state.highlight = edgeKey;
+
+                    var connected = {};
+                    connected[edge.source] = true;
+                    connected[edge.target] = true;
+
+                    applyHighlight(svg, function (el) {
+                        var dl = el.attr("data-layer");
+                        var ds = el.attr("data-source");
+                        var dt = el.attr("data-target");
+                        if (dl) return !!connected[dl];
+                        if (ds && dt) return ds === edge.source && dt === edge.target;
+                        return false;
+                    });
+                })
+                .on("dblclick", function () {
                     navigateToFiles(null, edge.source, edge.target);
                 })
                 .on("mouseover", function (event) {
@@ -710,6 +872,11 @@
 
         svg.attr("viewBox", "0 0 " + width + " " + height);
 
+        // Click on empty space clears highlight
+        svg.on("click", function () {
+            if (state.highlight) clearHighlight(svg);
+        });
+
         // Defs for arrow markers (per relationship type + violation)
         var defs = svg.append("defs");
         defineFileArrowMarkers(defs);
@@ -784,6 +951,8 @@
             .attr("class", function (d) {
                 return "file-edge" + (d.violation ? " violation" : "");
             })
+            .attr("data-source", function (d) { return d.source.id || d.source; })
+            .attr("data-target", function (d) { return d.target.id || d.target; })
             .attr("stroke", function (d) {
                 return d.violation ? "#f44336" : relColor(d.relType);
             })
@@ -830,7 +999,50 @@
             .enter()
             .append("g")
             .attr("class", "file-node")
+            .attr("data-file-id", function (d) { return d.id; })
             .on("click", function (event, d) {
+                event.stopPropagation();
+                var svg = d3.select("#layer-diagram");
+
+                if (state.highlight === d.id) {
+                    clearHighlight(svg);
+                    return;
+                }
+                state.highlight = d.id;
+
+                // Find connected file ids and badge layers
+                var connected = {};
+                connected[d.id] = true;
+                var connectedBadgeLayers = {};
+                links.forEach(function (l) {
+                    var sid = l.source.id || l.source;
+                    var tid = l.target.id || l.target;
+                    if (sid === d.id) { connected[tid] = true; }
+                    if (tid === d.id) { connected[sid] = true; }
+                });
+                connectors.forEach(function (c) {
+                    if (c.fileId === d.id) {
+                        connectedBadgeLayers[c.badge.layer] = true;
+                    }
+                });
+
+                applyHighlight(svg, function (el) {
+                    var fid = el.attr("data-file-id");
+                    var ds = el.attr("data-source");
+                    var dt = el.attr("data-target");
+                    var dl = el.attr("data-layer");
+                    var dcf = el.attr("data-conn-file");
+                    if (fid) return !!connected[fid];
+                    if (ds && dt) {
+                        var esid = ds; var etid = dt;
+                        return esid === d.id || etid === d.id;
+                    }
+                    if (dl) return !!connectedBadgeLayers[dl];
+                    if (dcf) return dcf === d.id;
+                    return false;
+                });
+            })
+            .on("dblclick", function (event, d) {
                 // Store the layer for breadcrumb navigation back from Level 3
                 state.selectedLayer = state.selectedLayer || d.layer;
                 navigateToRatsnest(d.id);
@@ -989,11 +1201,16 @@
                 .enter()
                 .append("g")
                 .attr("class", "cross-layer-badge")
+                .attr("data-layer", function (d) { return d.layer; })
                 .style("cursor", "pointer")
                 .attr("transform", function (d) {
                     return "translate(" + d.x + "," + d.y + ")";
                 })
                 .on("click", function (event, d) {
+                    event.stopPropagation();
+                    // Badges don't highlight — just used as navigation targets
+                })
+                .on("dblclick", function (event, d) {
                     navigateToFiles(d.layer, null, null);
                 })
                 .on("mouseover", function (event, d) {
@@ -1039,6 +1256,7 @@
                 .enter()
                 .append("path")
                 .attr("class", "cross-layer-connector")
+                .attr("data-conn-file", function (d) { return d.fileId; })
                 .attr("fill", "none")
                 .attr("stroke", function (d) { return d.badge.color; })
                 .attr("stroke-width", 1)
@@ -1237,6 +1455,11 @@
 
         svg.attr("viewBox", "0 0 " + width + " " + height);
 
+        // Click on empty space clears highlight
+        svg.on("click", function () {
+            if (state.highlight) clearHighlight(svg);
+        });
+
         // Defs for arrow markers
         var defs = svg.append("defs");
         defineFileArrowMarkers(defs);
@@ -1305,8 +1528,11 @@
             var shortenedSource = shortenLine(targetPos, sourcePos, sourceNodeRadius);
             var shortenedTarget = shortenLine(sourcePos, targetPos, targetNodeRadius);
 
+            var neighborId = (sourceId === focus.id) ? targetId : sourceId;
+
             var line = edgeGroup.append("line")
                 .attr("class", "ratsnest-edge" + (violation ? " violation-pulse" : ""))
+                .attr("data-neighbor", neighborId)
                 .attr("x1", shortenedSource.x)
                 .attr("y1", shortenedSource.y)
                 .attr("x2", shortenedTarget.x)
@@ -1350,6 +1576,7 @@
 
             edgeGroup.append("text")
                 .attr("class", "ratsnest-edge-label")
+                .attr("data-neighbor", neighborId)
                 .attr("x", midX)
                 .attr("y", midY - 6)
                 .text(relType);
@@ -1401,8 +1628,27 @@
 
             var nbG = nodeGroup.append("g")
                 .attr("class", "ratsnest-neighbor-node")
+                .attr("data-neighbor", nb.id)
                 .attr("transform", "translate(" + pos.x + "," + pos.y + ")")
-                .on("click", function () {
+                .on("click", function (event) {
+                    event.stopPropagation();
+                    var svgEl = d3.select("#layer-diagram");
+
+                    if (state.highlight === nb.id) {
+                        clearHighlight(svgEl);
+                        return;
+                    }
+                    state.highlight = nb.id;
+
+                    applyHighlight(svgEl, function (el) {
+                        var dn = el.attr("data-neighbor");
+                        if (dn) return dn === nb.id;
+                        // Keep focus node visible
+                        if (el.classed("ratsnest-focus-node")) return true;
+                        return false;
+                    });
+                })
+                .on("dblclick", function () {
                     // Recenter ratsnest on this neighbor
                     state.selectedLayer = nb.layer;
                     navigateToRatsnest(nb.id);
