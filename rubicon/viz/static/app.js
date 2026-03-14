@@ -29,7 +29,7 @@
     // Highlight helpers
     // ------------------------------------------------------------------
 
-    var DIM_OPACITY = 0.2;
+    var DIM_OPACITY = 0.35;
     var NORMAL_OPACITY_ATTR = "data-normal-opacity";
     var HIGHLIGHT_MS = 120;
 
