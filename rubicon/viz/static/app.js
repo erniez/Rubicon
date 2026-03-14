@@ -920,34 +920,7 @@
                 return d.violation ? "url(#file-arrow-violation)" :
                     "url(#file-arrow-" + d.relType + ")";
             })
-            .on("mouseover", function (event, d) {
-                var html = '<div class="tt-title">' +
-                    escapeHtml(fileName(d.source.file_path || d.source.id || d.source)) +
-                    ' \u2192 ' +
-                    escapeHtml(fileName(d.target.file_path || d.target.id || d.target)) +
-                    '</div>';
-
-                if (d.relationships) {
-                    d.relationships.forEach(function (r) {
-                        html += '<div class="tt-row">' +
-                            '<span class="tt-label">' + escapeHtml(r.type) + ':</span>' +
-                            '<span class="tt-value">' +
-                            escapeHtml(r.source_symbol) + ' \u2192 ' +
-                            escapeHtml(r.target_symbol) + '</span></div>';
-                    });
-                }
-
-                if (d.violation) {
-                    html += '<div class="tt-row"><span class="tt-violation">' +
-                        escapeHtml(d.violation.rule) + '</span></div>';
-                    html += '<div class="tt-row"><span class="tt-violation">' +
-                        escapeHtml(d.violation.message) + '</span></div>';
-                }
-
-                showTooltip(html, event);
-            })
-            .on("mousemove", positionTooltip)
-            .on("mouseout", hideTooltip);
+;
 
         // Draw nodes (circles with labels)
         var nodeRadius = 20;
@@ -963,19 +936,6 @@
                 navigateToRatsnest(d.id);
             })
             .on("mouseover", function (event, d) {
-                var html = '<div class="tt-title">' + escapeHtml(d.label) + '</div>' +
-                    '<div class="tt-row"><span class="tt-label">Path:</span>' +
-                    '<span class="tt-value">' + escapeHtml(d.file_path) + '</span></div>' +
-                    '<div class="tt-row"><span class="tt-label">Language:</span>' +
-                    '<span class="tt-value">' + escapeHtml(d.language) + '</span></div>' +
-                    '<div class="tt-row"><span class="tt-label">Layer:</span>' +
-                    '<span class="tt-value">' + escapeHtml(d.layer) + '</span></div>';
-                if (d.symbols && d.symbols.length > 0) {
-                    html += '<div class="tt-row"><span class="tt-label">Symbols:</span>' +
-                        '<span class="tt-value">' + escapeHtml(d.symbols.join(", ")) + '</span></div>';
-                }
-                showTooltip(html, event);
-
                 // Highlight this file and its connections
                 var svg = d3.select("#layer-diagram");
                 var connected = {};
@@ -1005,9 +965,7 @@
                     return false;
                 });
             })
-            .on("mousemove", positionTooltip)
             .on("mouseout", function () {
-                hideTooltip();
                 clearHighlight(d3.select("#layer-diagram"));
             })
             .call(d3.drag()
@@ -1170,19 +1128,6 @@
                     navigateToFiles(d.layer, null, null);
                 })
                 .on("mouseover", function (event, d) {
-                    var outCount = d.outbound_files.length;
-                    var inCount = d.inbound_files.length;
-                    var html = '<div class="tt-title">' + escapeHtml(d.layer) + '</div>';
-                    if (outCount > 0) {
-                        html += '<div class="tt-row"><span class="tt-label">Outbound:</span>' +
-                            '<span class="tt-value">' + outCount + ' file' + (outCount > 1 ? 's' : '') + '</span></div>';
-                    }
-                    if (inCount > 0) {
-                        html += '<div class="tt-row"><span class="tt-label">Inbound:</span>' +
-                            '<span class="tt-value">' + inCount + ' file' + (inCount > 1 ? 's' : '') + '</span></div>';
-                    }
-                    showTooltip(html, event);
-
                     // Highlight badge and all connected files + connectors
                     var svg = d3.select("#layer-diagram");
                     var connectedFiles = {};
@@ -1201,9 +1146,7 @@
                         return false;
                     });
                 })
-                .on("mousemove", positionTooltip)
                 .on("mouseout", function () {
-                    hideTooltip();
                     clearHighlight(d3.select("#layer-diagram"));
                 });
 
