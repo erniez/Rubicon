@@ -1,0 +1,31 @@
+layers:
+  presentation:
+    directories:
+      - app/ui/
+    color: "#4A90D9"
+  domain:
+    directories:
+      - app/models/
+    color: "#50C878"
+  data:
+    directories:
+      - app/db/
+    color: "#E8A838"
+  networking:
+    directories:
+      - app/api/
+    color: "#D94A4A"
+
+layer_order:
+  - presentation
+  - domain
+  - data
+  - networking
+
+rules:
+  - no_upward_dependency
+  - no_layer_skipping
+  - inheritance_flows_downward
+  - no_circular_ownership
+  - single_responsibility
+  - orphan_detection

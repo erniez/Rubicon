@@ -161,10 +161,39 @@ def file_level_view(
     # Collect violations involving these nodes
     violations_list = _filter_violations(violations, node_ids)
 
+    # Cross-layer connections: for single-layer view, summarise edges that
+    # leave this layer so the frontend can render "exit arrows" pointing to
+    # adjacent layers without showing individual external files.
+    cross_layer: list[dict] = []
+    if layer is not None:
+        # Gather outbound + inbound edges to/from external layers
+        ext: dict[str, dict] = {}  # layer_name -> {outbound: {file_ids}, inbound: {file_ids}}
+        for source_id, target_id, _data in graph.edges(data=True):
+            s_layer = graph.nodes[source_id].get("layer", "unclassified")
+            t_layer = graph.nodes[target_id].get("layer", "unclassified")
+            if s_layer == layer and t_layer != layer:
+                entry = ext.setdefault(t_layer, {"outbound": set(), "inbound": set()})
+                entry["outbound"].add(source_id)
+            elif t_layer == layer and s_layer != layer:
+                entry = ext.setdefault(s_layer, {"outbound": set(), "inbound": set()})
+                entry["inbound"].add(target_id)
+
+        # Build layer color lookup
+        for ext_layer, directions in sorted(ext.items()):
+            lc = config.layers.get(ext_layer)
+            color = lc.color if lc and lc.color else _default_color(ext_layer)
+            cross_layer.append({
+                "layer": ext_layer,
+                "color": color,
+                "outbound_files": sorted(directions["outbound"]),
+                "inbound_files": sorted(directions["inbound"]),
+            })
+
     return {
         "nodes": nodes_list,
         "edges": edges_list,
         "violations": violations_list,
+        "cross_layer_connections": cross_layer,
     }
 
 

@@ -236,3 +236,46 @@ class TestConfigure:
         data = client.get("/api/layers").json()
         assert len(data["layers"]) == 1
         assert data["layers"][0]["name"] == "solo"
+
+
+# ---------------------------------------------------------------------------
+# Tests: Static file serving
+# ---------------------------------------------------------------------------
+
+class TestStaticFiles:
+    def test_index_returns_200(self, client: TestClient) -> None:
+        response = client.get("/")
+        assert response.status_code == 200
+
+    def test_index_returns_html(self, client: TestClient) -> None:
+        response = client.get("/")
+        assert "text/html" in response.headers.get("content-type", "")
+
+    def test_index_contains_rubicon(self, client: TestClient) -> None:
+        response = client.get("/")
+        assert "Rubicon" in response.text
+
+    def test_css_returns_200(self, client: TestClient) -> None:
+        response = client.get("/static/styles.css")
+        assert response.status_code == 200
+        assert "text/css" in response.headers.get("content-type", "")
+
+    def test_js_returns_200(self, client: TestClient) -> None:
+        response = client.get("/static/app.js")
+        assert response.status_code == 200
+        assert "javascript" in response.headers.get("content-type", "")
+
+    def test_index_references_d3(self, client: TestClient) -> None:
+        """index.html should load D3.js from CDN."""
+        response = client.get("/")
+        assert "d3.v7" in response.text
+
+    def test_index_references_app_js(self, client: TestClient) -> None:
+        """index.html should load our app.js."""
+        response = client.get("/")
+        assert "app.js" in response.text
+
+    def test_index_references_styles(self, client: TestClient) -> None:
+        """index.html should load styles.css."""
+        response = client.get("/")
+        assert "styles.css" in response.text

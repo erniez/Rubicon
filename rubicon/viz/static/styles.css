@@ -1,0 +1,407 @@
+/* ===================================================================
+   Rubicon — Architecture Visualization Styles
+   =================================================================== */
+
+/* --- Reset & Base -------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 Helvetica, Arial, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+}
+
+/* --- Header -------------------------------------------------------- */
+#header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 24px;
+    background: #1a1d27;
+    border-bottom: 1px solid #2a2d3a;
+    height: 56px;
+    z-index: 10;
+    position: relative;
+}
+
+#header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+/* --- Breadcrumb ---------------------------------------------------- */
+#breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+}
+
+#breadcrumb .crumb {
+    color: #8888aa;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+#breadcrumb .crumb:hover {
+    background: #2a2d3a;
+    color: #ccccee;
+}
+
+#breadcrumb .crumb.active {
+    color: #ffffff;
+    cursor: default;
+}
+
+#breadcrumb .crumb.active:hover {
+    background: transparent;
+}
+
+#breadcrumb .separator {
+    color: #555566;
+    font-size: 12px;
+    user-select: none;
+}
+
+/* --- Visualization Container --------------------------------------- */
+#viz-container {
+    width: 100%;
+    height: calc(100vh - 56px);
+    position: relative;
+}
+
+#layer-diagram {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* --- Layer Blocks (Geological Strata) ------------------------------ */
+.layer-block {
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+
+.layer-block:hover {
+    filter: brightness(1.25);
+}
+
+.layer-block.stratum rect {
+    rx: 0;
+    ry: 0;
+    stroke-width: 0;
+}
+
+.layer-block .layer-name {
+    font-size: 16px;
+    font-weight: 600;
+    fill: #ffffff;
+    pointer-events: none;
+}
+
+.layer-block .layer-name.stratum-name {
+    text-anchor: start;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 14px;
+}
+
+.layer-block .layer-count {
+    font-size: 13px;
+    fill: rgba(255, 255, 255, 0.45);
+    pointer-events: none;
+    text-anchor: start;
+}
+
+/* --- Edges --------------------------------------------------------- */
+.layer-edge {
+    fill: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.layer-edge:hover {
+    opacity: 1 !important;
+}
+
+.layer-edge.clean {
+    stroke: #3ddc84;
+}
+
+.layer-edge.warning {
+    stroke: #ffc107;
+}
+
+.layer-edge.error {
+    stroke: #f44336;
+}
+
+.edge-label {
+    font-size: 12px;
+    font-weight: 600;
+    fill: #e0e0e0;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.edge-label-bg {
+    fill: #1a1d27;
+    rx: 3;
+    ry: 3;
+}
+
+/* --- Arrow markers ------------------------------------------------- */
+.arrow-clean {
+    fill: #3ddc84;
+}
+
+.arrow-warning {
+    fill: #ffc107;
+}
+
+.arrow-error {
+    fill: #f44336;
+}
+
+/* --- Tooltip ------------------------------------------------------- */
+.tooltip {
+    position: absolute;
+    display: none;
+    background: #252833;
+    border: 1px solid #3a3d4a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #e0e0e0;
+    pointer-events: none;
+    z-index: 100;
+    max-width: 320px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.tooltip .tt-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #ffffff;
+}
+
+.tooltip .tt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.tooltip .tt-label {
+    color: #8888aa;
+}
+
+.tooltip .tt-value {
+    font-weight: 500;
+}
+
+.tooltip .tt-violation {
+    color: #f44336;
+    font-weight: 600;
+}
+
+/* --- Empty state --------------------------------------------------- */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #8888aa;
+    font-size: 18px;
+    gap: 12px;
+}
+
+.empty-state .empty-icon {
+    font-size: 48px;
+    opacity: 0.4;
+}
+
+/* --- Violation badge on layer blocks ------------------------------- */
+.violation-badge {
+    font-size: 11px;
+    font-weight: 700;
+    fill: #ffffff;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.violation-badge-bg {
+    fill: #f44336;
+    rx: 10;
+    ry: 10;
+}
+
+/* --- Level 2: File-Level View -------------------------------------- */
+.file-node {
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+
+.file-node:hover {
+    filter: brightness(1.2);
+}
+
+.file-node circle {
+    transition: stroke-width 0.15s;
+}
+
+.file-node:hover circle {
+    stroke-width: 3;
+}
+
+.file-node-label {
+    font-size: 11px;
+    fill: #ccccdd;
+    text-anchor: middle;
+    pointer-events: none;
+    font-weight: 500;
+}
+
+.file-layer-badge-text {
+    font-size: 9px;
+    fill: #ccccdd;
+    text-anchor: middle;
+    pointer-events: none;
+    font-weight: 400;
+}
+
+.file-edge {
+    fill: none;
+    opacity: 0.6;
+    transition: opacity 0.15s, stroke-width 0.15s;
+}
+
+.file-edge:hover {
+    opacity: 1;
+    stroke-width: 3;
+}
+
+.file-edge.violation {
+    opacity: 0.9;
+    stroke-dasharray: 6, 3;
+}
+
+/* --- Cross-Layer Connection Indicators ------------------------------ */
+.cross-layer-badge {
+    transition: filter 0.15s;
+}
+
+.cross-layer-badge:hover {
+    filter: brightness(1.3);
+}
+
+.cross-layer-badge:hover rect {
+    fill-opacity: 0.45;
+    stroke-width: 2.5;
+}
+
+.cross-layer-connector {
+    pointer-events: none;
+}
+
+/* --- Level 3: Ratsnest View ---------------------------------------- */
+.ratsnest-focus-node {
+    cursor: default;
+}
+
+.ratsnest-focus-label {
+    font-size: 13px;
+    font-weight: 600;
+    fill: #ffffff;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.ratsnest-focus-layer {
+    font-size: 11px;
+    fill: rgba(255, 255, 255, 0.6);
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.ratsnest-neighbor-node {
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+
+.ratsnest-neighbor-node:hover {
+    filter: brightness(1.2);
+}
+
+.ratsnest-neighbor-node:hover circle {
+    stroke-width: 3;
+}
+
+.ratsnest-neighbor-label {
+    font-size: 11px;
+    fill: #ccccdd;
+    text-anchor: middle;
+    pointer-events: none;
+    font-weight: 500;
+}
+
+.ratsnest-neighbor-badge {
+    font-size: 9px;
+    fill: #ccccdd;
+    text-anchor: middle;
+    pointer-events: none;
+    font-weight: 400;
+}
+
+.ratsnest-direction {
+    font-size: 14px;
+    fill: #8888aa;
+    pointer-events: none;
+}
+
+.ratsnest-edge {
+    fill: none;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.ratsnest-edge:hover {
+    opacity: 1;
+    stroke-width: 3;
+}
+
+.ratsnest-edge-label {
+    font-size: 9px;
+    fill: #8888aa;
+    text-anchor: middle;
+    pointer-events: none;
+    font-weight: 400;
+}
+
+/* Violation pulse animation for ratsnest edges */
+.violation-pulse {
+    opacity: 0.9;
+    stroke-dasharray: 6, 3;
+    animation: pulse-red 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+    0%   { opacity: 0.5; stroke-width: 2; }
+    50%  { opacity: 1;   stroke-width: 4; }
+    100% { opacity: 0.5; stroke-width: 2; }
+}
