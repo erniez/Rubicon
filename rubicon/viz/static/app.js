@@ -1072,9 +1072,9 @@
         var connectors = [];
         var topMargin = 0;
         var bottomMargin = 0;
+        var badgeH = 28;
 
         if (crossConnections.length > 0) {
-            var badgeH = 28;
 
             // Classify badges as "above", "below", or "side" using layer_order
             var aboveBadges = [];
@@ -1287,32 +1287,52 @@
                     return "translate(" + d.x + "," + d.y + ")";
                 });
 
-            // Update cross-layer connector paths
+            // Update cross-layer connector paths (edge of node → edge of badge)
             if (connectors.length > 0) {
                 connectorSelection.attr("d", function (d) {
                     var node = nodeMap[d.fileId];
                     if (!node || node.x == null) return "";
-                    var sx = node.x;
-                    var sy = node.y;
-                    var ex = d.badge.x;
-                    var ey = d.badge.y;
+
+                    var nx = node.x;
+                    var ny = node.y;
+                    var bx = d.badge.x;
+                    var by = d.badge.y;
+
+                    // Offset start from edge of file node circle
+                    var dx = bx - nx;
+                    var dy = by - ny;
+                    var dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 1) return "";
+                    var sx = nx + (dx / dist) * nodeRadius;
+                    var sy = ny + (dy / dist) * nodeRadius;
+
+                    // Offset end to edge of badge pill
+                    var ex, ey;
+                    if (d.badge.position === "above") {
+                        ex = bx;
+                        ey = by + badgeH / 2;
+                    } else if (d.badge.position === "below") {
+                        ex = bx;
+                        ey = by - badgeH / 2;
+                    } else {
+                        var lblText = d.badge.layer + " (" + (d.badge.totalCount || 0) + ")";
+                        ex = bx - (lblText.length * 3.5 + 12);
+                        ey = by;
+                    }
 
                     if (d.badge.position === "above") {
-                        // Curve upward
                         var cy1 = sy - (sy - ey) * 0.5;
                         return "M" + sx + "," + sy +
                             " C" + sx + "," + cy1 +
-                            " " + ex + "," + (ey + 30) +
+                            " " + ex + "," + (ey + 20) +
                             " " + ex + "," + ey;
                     } else if (d.badge.position === "below") {
-                        // Curve downward
                         var cy2 = sy + (ey - sy) * 0.5;
                         return "M" + sx + "," + sy +
                             " C" + sx + "," + cy2 +
-                            " " + ex + "," + (ey - 30) +
+                            " " + ex + "," + (ey - 20) +
                             " " + ex + "," + ey;
                     } else {
-                        // Curve rightward (side)
                         var cx1 = sx + (ex - sx) * 0.5;
                         var cx2 = sx + (ex - sx) * 0.7;
                         return "M" + sx + "," + sy +
