@@ -437,12 +437,7 @@
                 .on("click", function () {
                     navigateToFiles(layer.name, null, null);
                 })
-                .on("mouseover", function (event) {
-                    var html = '<div class="tt-title">' + escapeHtml(layer.name) + '</div>' +
-                        '<div class="tt-row"><span class="tt-label">Files:</span>' +
-                        '<span class="tt-value">' + layer.file_count + '</span></div>';
-                    showTooltip(html, event);
-
+                .on("mouseover", function () {
                     // Highlight this layer and its connections
                     var svg = d3.select("#layer-diagram");
                     var layerName = layer.name;
@@ -463,9 +458,7 @@
                         return false;
                     });
                 })
-                .on("mousemove", positionTooltip)
                 .on("mouseout", function () {
-                    hideTooltip();
                     clearHighlight(d3.select("#layer-diagram"));
                 });
 
@@ -570,32 +563,7 @@
                 .on("click", function () {
                     navigateToFiles(null, edge.source, edge.target);
                 })
-                .on("mouseover", function (event) {
-                    var html = '<div class="tt-title">' +
-                        escapeHtml(edge.source) + ' \u2192 ' +
-                        escapeHtml(edge.target) + '</div>';
-
-                    html += '<div class="tt-row"><span class="tt-label">Connections:</span>' +
-                        '<span class="tt-value">' + edge.count + '</span></div>';
-
-                    if (edge.relationships) {
-                        var relKeys = Object.keys(edge.relationships);
-                        relKeys.forEach(function (rel) {
-                            html += '<div class="tt-row"><span class="tt-label">' +
-                                escapeHtml(rel) + ':</span>' +
-                                '<span class="tt-value">' +
-                                edge.relationships[rel] + '</span></div>';
-                        });
-                    }
-
-                    if (edge.violations > 0) {
-                        html += '<div class="tt-row"><span class="tt-violation">Violations:</span>' +
-                            '<span class="tt-violation">' +
-                            edge.violations + '</span></div>';
-                    }
-
-                    showTooltip(html, event);
-
+                .on("mouseover", function () {
                     // Highlight this edge and its endpoint layers
                     var svg = d3.select("#layer-diagram");
                     var connected = {};
@@ -610,9 +578,7 @@
                         return false;
                     });
                 })
-                .on("mousemove", positionTooltip)
                 .on("mouseout", function () {
-                    hideTooltip();
                     clearHighlight(d3.select("#layer-diagram"));
                 });
 
