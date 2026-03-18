@@ -5,7 +5,7 @@ from pathlib import Path
 
 from tree_sitter import Node
 
-from rubicon.graph.models import Relationship, RelationshipType
+from rubicon.models import Relationship, RelationshipType
 
 logger = logging.getLogger(__name__)
 

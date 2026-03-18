@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from tree_sitter import Language, Parser
 
-from rubicon.graph.models import Relationship
+from rubicon.models import Relationship
 
 logger = logging.getLogger(__name__)
 

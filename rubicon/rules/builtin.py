@@ -4,8 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import Relationship, RelationshipType, Severity, Violation
+from rubicon.models import Relationship, RelationshipType, RubiconConfig, Severity, Violation
 
 
 def no_upward_dependency(
@@ -59,6 +58,8 @@ def no_layer_skipping(
         if source_idx is None or target_idx is None:
             continue
         if source_layer == target_layer:
+            continue
+        if target_layer in config.foundation_layers:
             continue
 
         distance = abs(source_idx - target_idx)

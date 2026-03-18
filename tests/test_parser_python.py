@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from rubicon.graph.models import RelationshipType
+from rubicon.models import RelationshipType
 from rubicon.parser.treesitter import parse_file
 
 FIXTURES = Path(__file__).parent / "fixtures" / "python"

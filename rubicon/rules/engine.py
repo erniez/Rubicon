@@ -4,8 +4,7 @@ from typing import Callable
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import Violation
+from rubicon.models import RubiconConfig, Violation
 from rubicon.rules import builtin
 
 # Map rule names to their implementation functions

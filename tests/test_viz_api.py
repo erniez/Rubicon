@@ -5,8 +5,7 @@ from pathlib import Path
 import networkx as nx
 import pytest
 
-from rubicon.classifier.config import LayerConfig, RubiconConfig
-from rubicon.graph.models import Relationship, RelationshipType, Severity, Violation
+from rubicon.models import LayerConfig, Relationship, RelationshipType, RubiconConfig, Severity, Violation
 from rubicon.snapshot.diff import SnapshotDiff
 from rubicon.viz.api import diff_overlay, file_level_view, layer_summary, ratsnest_view
 

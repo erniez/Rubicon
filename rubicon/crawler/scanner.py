@@ -1,10 +1,10 @@
 """File discovery and language detection."""
 
-from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 
 from rubicon.crawler.ignore import load_gitignore
+from rubicon.models import SourceFile
 
 EXTENSION_MAP: dict[str, str] = {
     ".py": "python",
@@ -25,16 +25,6 @@ EXTENSION_MAP: dict[str, str] = {
     ".hpp": "cpp",
     ".rb": "ruby",
 }
-
-
-@dataclass(frozen=True)
-class SourceFile:
-    """A discovered source file with language and content."""
-
-    path: Path
-    language: str
-    content: str
-    hash: str
 
 
 def detect_language(path: Path) -> str | None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from rich.console import Console
 from rich.text import Text
 
-from rubicon.graph.models import Severity, Violation
+from rubicon.models import Severity, Violation
 from rubicon.snapshot.diff import SnapshotDiff
 
 _SEVERITY_ORDER = [Severity.ERROR, Severity.WARNING, Severity.INFO]

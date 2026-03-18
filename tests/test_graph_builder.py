@@ -4,7 +4,7 @@ from pathlib import Path
 
 from rubicon.graph.builder import build_graph_from_relationships, graph_summary
 from rubicon.graph.layered import apply_layers
-from rubicon.graph.models import Relationship, RelationshipType
+from rubicon.models import Relationship, RelationshipType
 
 
 def _rel(

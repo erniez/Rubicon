@@ -11,8 +11,7 @@ from collections import Counter
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import Violation
+from rubicon.models import RubiconConfig, Violation
 from rubicon.snapshot.diff import SnapshotDiff
 
 

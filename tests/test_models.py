@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from rubicon.graph.models import (
+from rubicon.models import (
     Edge,
     Language,
     Node,

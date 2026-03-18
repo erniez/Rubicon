@@ -2,7 +2,8 @@
 
 from pathlib import Path
 
-from rubicon.crawler.scanner import SourceFile, detect_language, scan
+from rubicon.crawler.scanner import detect_language, scan
+from rubicon.models import SourceFile
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample_project"
 

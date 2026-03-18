@@ -4,8 +4,7 @@ from collections import Counter
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import Severity, Violation
+from rubicon.models import RubiconConfig, Severity, Violation
 
 
 def generate_mermaid(

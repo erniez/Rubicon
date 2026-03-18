@@ -28,6 +28,10 @@ layers:
       - rubicon/reporter.py
       - rubicon/mermaid.py
     color: "#F39C12"
+  models:
+    directories:
+      - rubicon/models.py
+    color: "#95A5A6"
 
 layer_order:
   - cli
@@ -37,6 +41,10 @@ layer_order:
   - parser
   - crawler
   - config
+  - models
+
+foundation_layers:
+  - models
 
 rules:
   - no_upward_dependency

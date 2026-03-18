@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Protocol
 
-from rubicon.graph.models import Relationship
+from rubicon.models import Relationship
 
 
 class LanguageAdapter(Protocol):

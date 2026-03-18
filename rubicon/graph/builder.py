@@ -4,8 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from rubicon.crawler.scanner import SourceFile
-from rubicon.graph.models import Relationship, RelationshipType
+from rubicon.models import Relationship, RelationshipType, SourceFile
 from rubicon.parser.treesitter import parse_file
 
 

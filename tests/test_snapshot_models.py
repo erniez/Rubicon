@@ -6,10 +6,10 @@ from pathlib import Path
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import (
+from rubicon.models import (
     Relationship,
     RelationshipType,
+    RubiconConfig,
     Severity,
     Violation,
 )

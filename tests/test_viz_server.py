@@ -6,8 +6,7 @@ import networkx as nx
 import pytest
 from fastapi.testclient import TestClient
 
-from rubicon.classifier.config import LayerConfig, RubiconConfig
-from rubicon.graph.models import Relationship, RelationshipType, Severity, Violation
+from rubicon.models import LayerConfig, Relationship, RelationshipType, RubiconConfig, Severity, Violation
 from rubicon.snapshot.diff import SnapshotDiff
 from rubicon.viz.server import app, configure
 

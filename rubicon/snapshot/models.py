@@ -6,8 +6,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import RelationshipType, Severity, Violation
+from rubicon.models import RubiconConfig, RelationshipType, Severity, Violation
 
 
 @dataclass

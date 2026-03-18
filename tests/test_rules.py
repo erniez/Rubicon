@@ -4,8 +4,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from rubicon.classifier.config import RubiconConfig, LayerConfig
-from rubicon.graph.models import Relationship, RelationshipType, Severity
+from rubicon.models import LayerConfig, Relationship, RelationshipType, RubiconConfig, Severity
 from rubicon.rules.builtin import (
     dependency_inversion,
     inheritance_flows_downward,

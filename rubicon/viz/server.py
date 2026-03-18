@@ -17,8 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from rubicon.classifier.config import RubiconConfig
-from rubicon.graph.models import Violation
+from rubicon.models import RubiconConfig, Violation
 from rubicon.snapshot.diff import SnapshotDiff
 from rubicon.viz.api import diff_overlay, file_level_view, layer_summary, ratsnest_view
 

@@ -2,7 +2,8 @@
 
 from pathlib import Path
 
-from rubicon.classifier.config import ALL_BUILTIN_RULES, load_config
+from rubicon.classifier.config import load_config
+from rubicon.models import ALL_BUILTIN_RULES
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE = FIXTURES / "sample_project"

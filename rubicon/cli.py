@@ -6,7 +6,7 @@ from rubicon.classifier.config import load_config
 from rubicon.crawler.scanner import scan
 from rubicon.graph.builder import build_graph, graph_summary
 from rubicon.graph.layered import apply_layers
-from rubicon.graph.models import Severity
+from rubicon.models import Severity
 from rubicon.mermaid import generate_mermaid
 from rubicon.reporter import report_violations
 from rubicon.rules.engine import run_rules

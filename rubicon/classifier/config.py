@@ -1,52 +1,13 @@
 """Read and parse .rubicon YAML configuration."""
 
 import logging
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from rubicon.models import ALL_BUILTIN_RULES, LayerConfig, RubiconConfig
+
 logger = logging.getLogger(__name__)
-
-ALL_BUILTIN_RULES: list[str] = [
-    "no_upward_dependency",
-    "no_layer_skipping",
-    "inheritance_flows_downward",
-    "no_circular_ownership",
-    "no_circular_imports",
-    "dependency_inversion",
-    "single_responsibility",
-    "orphan_detection",
-]
-
-
-@dataclass
-class LayerConfig:
-    """Configuration for a single architectural layer."""
-
-    directories: list[str] = field(default_factory=list)
-    color: str = ""
-
-
-@dataclass
-class RubiconConfig:
-    """Parsed .rubicon configuration."""
-
-    layers: dict[str, LayerConfig] = field(default_factory=dict)
-    layer_order: list[str] = field(default_factory=list)
-    rules: list[str] = field(default_factory=lambda: list(ALL_BUILTIN_RULES))
-
-    @property
-    def layer_map(self) -> dict[str, list[str]]:
-        """Return layer name → directory list mapping for use with apply_layers."""
-        return {name: lc.directories for name, lc in self.layers.items()}
-
-    def layer_index(self, layer_name: str) -> int | None:
-        """Return the position of a layer in the layer order, or None if absent."""
-        try:
-            return self.layer_order.index(layer_name)
-        except ValueError:
-            return None
 
 
 def load_config(root: Path) -> RubiconConfig:
@@ -90,6 +51,11 @@ def _parse_config(raw: dict) -> RubiconConfig:
     raw_order = raw.get("layer_order", [])
     if isinstance(raw_order, list):
         config.layer_order = [str(item) for item in raw_order]
+
+    # Parse foundation_layers
+    raw_foundation = raw.get("foundation_layers", [])
+    if isinstance(raw_foundation, list):
+        config.foundation_layers = [str(item) for item in raw_foundation]
 
     # Parse rules (if specified, use only those; otherwise keep all defaults)
     raw_rules = raw.get("rules")
