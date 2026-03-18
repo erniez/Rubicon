@@ -11,6 +11,7 @@ from rubicon.snapshot.store import (
     list_snapshots,
     load_latest_snapshot,
     load_snapshot,
+    resolve_snapshot,
     save_snapshot,
 )
 
@@ -111,6 +112,75 @@ class TestListSnapshots:
         snapshots = list_snapshots(tmp_path)
         assert len(snapshots) == 2
         assert snapshots[0].name < snapshots[1].name
+
+
+class TestResolveSnapshot:
+    def test_returns_none_when_no_snapshots(self, tmp_path: Path) -> None:
+        assert resolve_snapshot(tmp_path, "1") is None
+
+    def test_positive_index(self, tmp_path: Path) -> None:
+        s1 = _make_snapshot(commit_hash="first")
+        save_snapshot(tmp_path, s1)
+
+        time.sleep(1.1)
+
+        s2 = _make_snapshot(commit_hash="second")
+        save_snapshot(tmp_path, s2)
+
+        result = resolve_snapshot(tmp_path, "1")
+        assert result is not None
+        assert result.commit_hash == "first"
+
+        result = resolve_snapshot(tmp_path, "2")
+        assert result is not None
+        assert result.commit_hash == "second"
+
+    def test_negative_index(self, tmp_path: Path) -> None:
+        s1 = _make_snapshot(commit_hash="first")
+        save_snapshot(tmp_path, s1)
+
+        time.sleep(1.1)
+
+        s2 = _make_snapshot(commit_hash="second")
+        save_snapshot(tmp_path, s2)
+
+        result = resolve_snapshot(tmp_path, "-1")
+        assert result is not None
+        assert result.commit_hash == "second"
+
+        result = resolve_snapshot(tmp_path, "-2")
+        assert result is not None
+        assert result.commit_hash == "first"
+
+    def test_by_filename(self, tmp_path: Path) -> None:
+        s1 = _make_snapshot(commit_hash="target")
+        path = save_snapshot(tmp_path, s1)
+
+        result = resolve_snapshot(tmp_path, path.name)
+        assert result is not None
+        assert result.commit_hash == "target"
+
+    def test_by_timestamp_prefix(self, tmp_path: Path) -> None:
+        s1 = _make_snapshot(commit_hash="target")
+        path = save_snapshot(tmp_path, s1)
+
+        # Use the date portion of the filename as a prefix
+        prefix = path.stem[:8]  # e.g. "20260318"
+        result = resolve_snapshot(tmp_path, prefix)
+        assert result is not None
+        assert result.commit_hash == "target"
+
+    def test_invalid_index_returns_none(self, tmp_path: Path) -> None:
+        s1 = _make_snapshot()
+        save_snapshot(tmp_path, s1)
+
+        assert resolve_snapshot(tmp_path, "99") is None
+
+    def test_no_match_returns_none(self, tmp_path: Path) -> None:
+        s1 = _make_snapshot()
+        save_snapshot(tmp_path, s1)
+
+        assert resolve_snapshot(tmp_path, "nonexistent") is None
 
 
 class TestGetCommitHash:

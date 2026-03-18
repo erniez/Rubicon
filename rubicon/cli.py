@@ -12,7 +12,13 @@ from rubicon.reporter import report_violations
 from rubicon.rules.engine import run_rules
 from rubicon.snapshot.diff import SnapshotDiff, diff_snapshots
 from rubicon.snapshot.models import graph_to_snapshot
-from rubicon.snapshot.store import get_commit_hash, load_latest_snapshot, save_snapshot
+from rubicon.snapshot.store import (
+    get_commit_hash,
+    list_snapshots,
+    load_latest_snapshot,
+    resolve_snapshot,
+    save_snapshot,
+)
 
 app = typer.Typer(
     name="rubicon",
@@ -53,6 +59,11 @@ def analyze(
         "--diff",
         help="Compare against the last snapshot and show changes.",
     ),
+    diff_against: str | None = typer.Option(
+        None,
+        "--diff-against",
+        help="Compare against a specific snapshot: index (1=oldest, -2=second latest), filename, or timestamp prefix.",
+    ),
     no_snapshot: bool = typer.Option(
         False,
         "--no-snapshot",
@@ -92,8 +103,20 @@ def analyze(
 
     # Snapshot: diff against previous if requested
     snapshot_diff: SnapshotDiff | None = None
-    if diff:
-        previous = load_latest_snapshot(path)
+    if diff or diff_against is not None:
+        if diff_against is not None:
+            previous = resolve_snapshot(path, diff_against)
+            if previous is None:
+                available = list_snapshots(path)
+                if not available:
+                    typer.echo("No snapshots found.", err=True)
+                else:
+                    typer.echo(f"Snapshot '{diff_against}' not found. Available snapshots:", err=True)
+                    for i, snap_path in enumerate(available, 1):
+                        typer.echo(f"  {i}: {snap_path.name}", err=True)
+                raise typer.Exit(code=1)
+        else:
+            previous = load_latest_snapshot(path)
         commit_hash = get_commit_hash(path)
         current_snapshot = graph_to_snapshot(graph, violations, config, commit_hash)
         snapshot_diff = diff_snapshots(previous, current_snapshot)
@@ -120,7 +143,7 @@ def analyze(
         from rubicon.viz.server import start_server
 
         typer.echo(f"Starting visualization server on http://127.0.0.1:{port}")
-        start_server(graph, config, violations, diff=snapshot_diff, port=port)
+        start_server(graph, config, violations, diff=snapshot_diff, port=port, project_root=path)
         raise typer.Exit()
 
     report_violations(violations, diff=snapshot_diff)

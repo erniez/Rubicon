@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from rubicon.models import RubiconConfig, Violation
 from rubicon.snapshot.diff import SnapshotDiff
+from rubicon.snapshot.store import list_snapshots, load_snapshot
 from rubicon.viz.api import diff_overlay, file_level_view, layer_summary, ratsnest_view
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ _graph: nx.DiGraph | None = None
 _config: RubiconConfig | None = None
 _violations: list[Violation] = []
 _diff: SnapshotDiff | None = None
+_project_root: Path | None = None
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -40,16 +42,18 @@ def configure(
     config: RubiconConfig,
     violations: list[Violation],
     diff: SnapshotDiff | None = None,
+    project_root: Path | None = None,
 ) -> None:
     """Set the module-level state used by the API endpoints.
 
     Must be called before any endpoint is hit.
     """
-    global _graph, _config, _violations, _diff  # noqa: PLW0603
+    global _graph, _config, _violations, _diff, _project_root  # noqa: PLW0603
     _graph = graph
     _config = config
     _violations = violations
     _diff = diff
+    _project_root = project_root
 
 
 def _require_state() -> tuple[nx.DiGraph, RubiconConfig, list[Violation]]:
@@ -114,6 +118,26 @@ def api_diff() -> dict:
     return diff_overlay(_diff)
 
 
+@app.get("/api/snapshots")
+def api_snapshots() -> dict:
+    """List available snapshots for the project."""
+    if _project_root is None:
+        return {"snapshots": []}
+
+    snapshot_paths = list_snapshots(_project_root)
+    snapshots = []
+    for i, snap_path in enumerate(snapshot_paths, 1):
+        snap = load_snapshot(snap_path)
+        snapshots.append({
+            "index": i,
+            "filename": snap_path.name,
+            "timestamp": snap.timestamp.isoformat(),
+            "commit_hash": snap.commit_hash,
+        })
+
+    return {"snapshots": snapshots}
+
+
 @app.get("/api/config")
 def api_config() -> dict:
     """Layer colors, layer order, and rule names."""
@@ -155,12 +179,13 @@ def start_server(
     violations: list[Violation],
     diff: SnapshotDiff | None = None,
     port: int = 8742,
+    project_root: Path | None = None,
 ) -> None:
     """Configure module state and start the uvicorn server.
 
     This is a blocking call — it runs until the server is stopped.
     """
-    configure(graph, config, violations, diff)
+    configure(graph, config, violations, diff, project_root=project_root)
     logger.info("Starting Rubicon visualization server on port %d", port)
     uvicorn.run(
         app,

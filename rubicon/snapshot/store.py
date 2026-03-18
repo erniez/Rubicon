@@ -41,6 +41,39 @@ def load_latest_snapshot(root: Path) -> Snapshot | None:
     return load_snapshot(snapshots[-1])
 
 
+def resolve_snapshot(root: Path, ref: str) -> Snapshot | None:
+    """Resolve a snapshot reference to a Snapshot.
+
+    Accepts:
+        - A positive integer N: the Nth snapshot (1-based, oldest first)
+        - A negative integer -N: Nth from the end (-1 = latest, -2 = second latest)
+        - A filename (e.g. "20260318T120000Z.json")
+        - A timestamp prefix (e.g. "20260318")
+
+    Returns None if no match is found.
+    """
+    snapshots = list_snapshots(root)
+    if not snapshots:
+        return None
+
+    # Try integer index
+    try:
+        idx = int(ref)
+        if idx > 0:
+            idx -= 1  # convert 1-based to 0-based
+        path = snapshots[idx]
+        return load_snapshot(path)
+    except (ValueError, IndexError):
+        pass
+
+    # Try exact filename or prefix match
+    for path in snapshots:
+        if path.name == ref or path.stem.startswith(ref):
+            return load_snapshot(path)
+
+    return None
+
+
 def list_snapshots(root: Path) -> list[Path]:
     """Return all snapshot files sorted by name (chronological)."""
     snapshots_dir = root / SNAPSHOTS_DIR

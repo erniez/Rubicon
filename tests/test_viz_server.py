@@ -1,5 +1,6 @@
 """Tests for rubicon.viz.server — FastAPI endpoints using TestClient."""
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import networkx as nx
@@ -195,6 +196,37 @@ class TestApiDiff:
 # ---------------------------------------------------------------------------
 # Tests: GET /api/config
 # ---------------------------------------------------------------------------
+
+class TestApiSnapshots:
+    def test_no_project_root_returns_empty(self, client: TestClient) -> None:
+        data = client.get("/api/snapshots").json()
+        assert data["snapshots"] == []
+
+    def test_returns_snapshot_list(self, tmp_path: Path, client: TestClient) -> None:
+        from rubicon.snapshot.models import Snapshot
+        from rubicon.snapshot.store import save_snapshot
+
+        s = Snapshot(
+            timestamp=datetime(2026, 3, 18, 12, 0, 0, tzinfo=timezone.utc),
+            commit_hash="abc123",
+            nodes=[],
+            edges=[],
+            violations=[],
+            layer_map={},
+        )
+        save_snapshot(tmp_path, s)
+
+        configure(
+            _make_graph(), _make_config(), _make_violations(),
+            project_root=tmp_path,
+        )
+        data = client.get("/api/snapshots").json()
+        assert len(data["snapshots"]) == 1
+        assert data["snapshots"][0]["index"] == 1
+        assert data["snapshots"][0]["commit_hash"] == "abc123"
+        assert "filename" in data["snapshots"][0]
+        assert "timestamp" in data["snapshots"][0]
+
 
 class TestApiConfig:
     def test_returns_200(self, client: TestClient) -> None:
