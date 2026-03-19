@@ -115,7 +115,7 @@ def api_file(file_id: str) -> dict:
 @app.get("/api/diff")
 def api_diff() -> dict:
     """Diff overlay data (empty if no diff mode)."""
-    return diff_overlay(_diff)
+    return diff_overlay(_diff, graph=_graph)
 
 
 @app.get("/api/snapshots")

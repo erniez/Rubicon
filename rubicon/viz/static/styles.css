@@ -405,3 +405,123 @@ html, body {
     50%  { opacity: 1;   stroke-width: 4; }
     100% { opacity: 0.5; stroke-width: 2; }
 }
+
+/* --- Diff Overlay -------------------------------------------------- */
+#diff-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 24px;
+    background: #1c2333;
+    border-bottom: 1px solid #2a3a5a;
+    font-size: 13px;
+    color: #a0b0d0;
+    z-index: 10;
+    position: relative;
+}
+
+#diff-banner #diff-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#diff-banner #diff-toggle {
+    background: #2a3a5a;
+    border: 1px solid #3a4a6a;
+    color: #a0b0d0;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s;
+}
+
+#diff-banner #diff-toggle:hover {
+    background: #3a4a6a;
+    color: #ffffff;
+}
+
+/* Diff: added edge (green dashed) */
+.layer-edge.diff-added,
+.file-edge.diff-added,
+.ratsnest-edge.diff-added {
+    stroke: #3ddc84 !important;
+    stroke-dasharray: 8, 4;
+    opacity: 0.8;
+}
+
+/* Diff: removed edge (gray dashed) */
+.layer-edge.diff-removed,
+.file-edge.diff-removed,
+.ratsnest-edge.diff-removed {
+    stroke: #666688 !important;
+    stroke-dasharray: 4, 4;
+    opacity: 0.4;
+}
+
+/* Diff: new file node (green glow) */
+.file-node.diff-added circle,
+.ratsnest-neighbor-node.diff-added circle {
+    stroke: #3ddc84 !important;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 6px rgba(61, 220, 132, 0.5));
+}
+
+/* Diff: removed file node (ghost) */
+.file-node.diff-removed,
+.ratsnest-neighbor-node.diff-removed {
+    opacity: 0.35;
+}
+
+.file-node.diff-removed circle,
+.ratsnest-neighbor-node.diff-removed circle {
+    stroke: #666688 !important;
+    stroke-dasharray: 4, 3;
+    fill-opacity: 0.05 !important;
+}
+
+/* Diff badge on layer blocks (+N / -N) */
+.diff-file-badge {
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.diff-file-badge.added {
+    fill: #3ddc84;
+}
+
+.diff-file-badge.removed {
+    fill: #f44336;
+}
+
+/* Diff: new violation pulsing badge */
+.diff-viol-badge {
+    animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+    0%   { opacity: 0.7; }
+    50%  { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+/* Diff: violation tags [NEW] [RESOLVED] */
+.diff-tag {
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.diff-tag.new {
+    fill: #f44336;
+}
+
+.diff-tag.resolved {
+    fill: #3ddc84;
+}
+
+/* Adjust viz-container height when diff banner is shown */
+body.diff-active #viz-container {
+    height: calc(100vh - 56px - 37px);
+}

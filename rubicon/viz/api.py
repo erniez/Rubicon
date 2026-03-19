@@ -282,10 +282,12 @@ def ratsnest_view(
 # Diff Overlay
 # ---------------------------------------------------------------------------
 
-def diff_overlay(diff: SnapshotDiff | None) -> dict:
+def diff_overlay(diff: SnapshotDiff | None, graph: nx.DiGraph | None = None) -> dict:
     """Overlay data for any view level.
 
     Returns an empty overlay when diff is None (no diff mode).
+    When graph is provided, includes a layer_map mapping node IDs to layers
+    so the frontend can aggregate file-level diffs into layer-level diffs.
     """
     if diff is None:
         return {
@@ -297,7 +299,13 @@ def diff_overlay(diff: SnapshotDiff | None) -> dict:
             "new_violations": [],
             "resolved_violations": [],
             "summary": "",
+            "layer_map": {},
         }
+
+    layer_map: dict[str, str] = {}
+    if graph is not None:
+        for node_id in graph.nodes:
+            layer_map[node_id] = graph.nodes[node_id].get("layer", "unclassified")
 
     return {
         "enabled": True,
@@ -308,6 +316,7 @@ def diff_overlay(diff: SnapshotDiff | None) -> dict:
         "new_violations": diff.new_violations,
         "resolved_violations": diff.resolved_violations,
         "summary": diff.summary,
+        "layer_map": layer_map,
     }
 
 

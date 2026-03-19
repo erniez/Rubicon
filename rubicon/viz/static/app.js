@@ -22,7 +22,9 @@
         sourceLayer: null,    // for Level 2 cross-layer drill-down
         targetLayer: null,    // for Level 2 cross-layer drill-down
         selectedFile: null,   // for Level 3 ratsnest
-        navigating: false     // guard against recursive hashchange events
+        navigating: false,    // guard against recursive hashchange events
+        diffData: null,       // cached /api/diff response
+        diffVisible: true     // whether diff overlay is shown
     };
 
     // ------------------------------------------------------------------
@@ -426,6 +428,12 @@
     // ------------------------------------------------------------------
 
     function drawLayerBlocks(group, layers, layout, data) {
+        // Compute layer diff summary once for all layers
+        var layerDiff = null;
+        if (state.diffData && state.diffData.enabled && state.diffVisible) {
+            layerDiff = buildLayerDiffSummary(state.diffData);
+        }
+
         layers.forEach(function (layer) {
             var pos = layout[layer.name];
             if (!pos) return;
@@ -513,6 +521,55 @@
                     .attr("y", badgeY + 4)
                     .text(layerViolations);
             }
+
+            // Diff overlay: +/- file count badges
+            if (layerDiff) {
+                var added = layerDiff.addedFiles[layer.name] || 0;
+                var removed = layerDiff.removedFiles[layer.name] || 0;
+                var diffBadgeX = 20;
+                var diffBadgeY = pos.h / 2 + 16;
+
+                if (added > 0) {
+                    var addedText = "+" + added + " file" + (added !== 1 ? "s" : "");
+                    g.append("text")
+                        .attr("class", "diff-file-badge added")
+                        .attr("x", diffBadgeX)
+                        .attr("y", diffBadgeY)
+                        .text(addedText);
+                    diffBadgeX += addedText.length * 7 + 12;
+                }
+                if (removed > 0) {
+                    g.append("text")
+                        .attr("class", "diff-file-badge removed")
+                        .attr("x", diffBadgeX)
+                        .attr("y", diffBadgeY)
+                        .text("-" + removed + " file" + (removed !== 1 ? "s" : ""));
+                }
+
+                // New/resolved violation badges on layer block
+                var newV = layerDiff.newLayerViolations[layer.name] || 0;
+                var resolvedV = layerDiff.resolvedLayerViolations[layer.name] || 0;
+                var violBadgeX = 20;
+                var violBadgeY = diffBadgeY + 16;
+                if (newV > 0) {
+                    var newText = newV + " NEW in " + layer.name;
+                    g.append("text")
+                        .attr("class", "diff-tag new diff-viol-badge")
+                        .attr("x", violBadgeX)
+                        .attr("y", violBadgeY)
+                        .attr("font-size", "13px")
+                        .text(newText);
+                    violBadgeX += newText.length * 7 + 12;
+                }
+                if (resolvedV > 0) {
+                    g.append("text")
+                        .attr("class", "diff-tag resolved")
+                        .attr("x", violBadgeX)
+                        .attr("y", violBadgeY)
+                        .attr("font-size", "13px")
+                        .text("\u2713 " + resolvedV + " RESOLVED in " + layer.name);
+                }
+            }
         });
     }
 
@@ -534,6 +591,12 @@
         // Reset edge slot counter for corridor spacing
         edgeSlotIndex = 0;
         edgeSlotTotal = edges.length;
+
+        // Compute layer diff summary once for all edges
+        var layerDiff = null;
+        if (state.diffData && state.diffData.enabled && state.diffVisible) {
+            layerDiff = buildLayerDiffSummary(state.diffData);
+        }
 
         edges.forEach(function (edge) {
             var sourcePos = layout[edge.source];
@@ -601,6 +664,56 @@
                 .attr("x", midX)
                 .attr("y", midY + 4)
                 .text(label);
+
+            // Diff badges next to edge label
+            if (layerDiff) {
+                var edgeKey = edge.source + ":" + edge.target;
+                var diffAdded = layerDiff.addedEdges[edgeKey] || 0;
+                var diffRemoved = layerDiff.removedEdges[edgeKey] || 0;
+                var diffNewViol = layerDiff.newViolations[edgeKey] || 0;
+                var diffResolved = layerDiff.resolvedViolations[edgeKey] || 0;
+                var diffY = midY + 18;
+
+                if (diffAdded > 0) {
+                    group.append("text")
+                        .attr("class", "diff-file-badge added")
+                        .attr("x", midX)
+                        .attr("y", diffY)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "12px")
+                        .text("+" + diffAdded + " " + edge.source + "\u2192" + edge.target);
+                    diffY += 16;
+                }
+                if (diffRemoved > 0) {
+                    group.append("text")
+                        .attr("class", "diff-file-badge removed")
+                        .attr("x", midX)
+                        .attr("y", diffY)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "12px")
+                        .text("-" + diffRemoved + " " + edge.source + "\u2192" + edge.target);
+                    diffY += 16;
+                }
+                if (diffNewViol > 0) {
+                    group.append("text")
+                        .attr("class", "diff-tag new diff-viol-badge")
+                        .attr("x", midX)
+                        .attr("y", diffY)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "12px")
+                        .text(diffNewViol + " NEW " + edge.source + "\u2192" + edge.target);
+                    diffY += 16;
+                }
+                if (diffResolved > 0) {
+                    group.append("text")
+                        .attr("class", "diff-tag resolved")
+                        .attr("x", midX)
+                        .attr("y", diffY)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "12px")
+                        .text("\u2713 " + diffResolved + " RESOLVED " + edge.source + "\u2192" + edge.target);
+                }
+            }
         });
     }
 
@@ -862,6 +975,19 @@
             }
         });
 
+        // Diff overlay: build lookup sets
+        var diffAddedNodes = {};
+        var diffAddedEdges = {};
+
+        if (state.diffData && state.diffData.enabled && state.diffVisible) {
+            (state.diffData.added_nodes || []).forEach(function (nid) {
+                diffAddedNodes[nid] = true;
+            });
+            (state.diffData.added_edges || []).forEach(function (e) {
+                diffAddedEdges[e.source + ":" + e.target] = true;
+            });
+        }
+
         // Create groups for edges and nodes
         var edgeGroup = svg.append("g").attr("class", "file-edges");
         var nodeGroup = svg.append("g").attr("class", "file-nodes");
@@ -872,7 +998,11 @@
             .enter()
             .append("line")
             .attr("class", function (d) {
-                return "file-edge" + (d.violation ? " violation" : "");
+                var cls = "file-edge";
+                if (d.violation) cls += " violation";
+                var key = (d.source.id || d.source) + ":" + (d.target.id || d.target);
+                if (diffAddedEdges[key]) cls += " diff-added";
+                return cls;
             })
             .attr("data-source", function (d) { return d.source.id || d.source; })
             .attr("data-target", function (d) { return d.target.id || d.target; })
@@ -894,7 +1024,11 @@
             .data(nodes)
             .enter()
             .append("g")
-            .attr("class", "file-node")
+            .attr("class", function (d) {
+                var cls = "file-node";
+                if (diffAddedNodes[d.id]) cls += " diff-added";
+                return cls;
+            })
             .attr("data-file-id", function (d) { return d.id; })
             .on("click", function (event, d) {
                 // Store the layer for breadcrumb navigation back from Level 3
@@ -1398,6 +1532,19 @@
             violationLookup[reverseKey] = v;
         });
 
+        // Diff overlay: build lookup sets
+        var diffAddedNodes = {};
+        var diffAddedEdges = {};
+
+        if (state.diffData && state.diffData.enabled && state.diffVisible) {
+            (state.diffData.added_nodes || []).forEach(function (nid) {
+                diffAddedNodes[nid] = true;
+            });
+            (state.diffData.added_edges || []).forEach(function (e) {
+                diffAddedEdges[e.source + ":" + e.target] = true;
+            });
+        }
+
         // Draw groups: edges behind, then nodes
         var edgeGroup = svg.append("g").attr("class", "ratsnest-edges");
         var nodeGroup = svg.append("g").attr("class", "ratsnest-nodes");
@@ -1431,8 +1578,11 @@
 
             var neighborId = (sourceId === focus.id) ? targetId : sourceId;
 
+            var edgeKey = sourceId + ":" + targetId;
+            var isDiffAdded = diffAddedEdges[edgeKey];
+
             var line = edgeGroup.append("line")
-                .attr("class", "ratsnest-edge" + (violation ? " violation-pulse" : ""))
+                .attr("class", "ratsnest-edge" + (violation ? " violation-pulse" : "") + (isDiffAdded ? " diff-added" : ""))
                 .attr("data-neighbor", neighborId)
                 .attr("x1", shortenedSource.x)
                 .attr("y1", shortenedSource.y)
@@ -1528,7 +1678,7 @@
             if (!pos) return;
 
             var nbG = nodeGroup.append("g")
-                .attr("class", "ratsnest-neighbor-node")
+                .attr("class", "ratsnest-neighbor-node" + (diffAddedNodes[nb.id] ? " diff-added" : ""))
                 .attr("data-neighbor", nb.id)
                 .attr("transform", "translate(" + pos.x + "," + pos.y + ")")
                 .on("click", function () {
@@ -1643,16 +1793,132 @@
     }
 
     // ------------------------------------------------------------------
+    // Diff overlay helpers
+    // ------------------------------------------------------------------
+
+    /** Build a set of "source:target" keys for quick lookup. */
+    function buildEdgeKeySet(edges) {
+        var keys = {};
+        (edges || []).forEach(function (e) {
+            keys[e.source + ":" + e.target] = true;
+        });
+        return keys;
+    }
+
+    /** Aggregate file-level diff data into layer-level counts using layer_map. */
+    function buildLayerDiffSummary(diffData) {
+        var summary = {
+            addedFiles: {},    // layer -> count
+            removedFiles: {},  // layer -> count
+            addedEdges: {},    // "srcLayer:tgtLayer" -> count
+            removedEdges: {},  // "srcLayer:tgtLayer" -> count
+            newViolations: {}, // "srcLayer:tgtLayer" -> count
+            resolvedViolations: {}, // "srcLayer:tgtLayer" -> count
+            newLayerViolations: {},  // layer -> count (node-level or intra-layer)
+            resolvedLayerViolations: {} // layer -> count
+        };
+
+        var lm = diffData.layer_map || {};
+
+        (diffData.added_nodes || []).forEach(function (nid) {
+            var layer = lm[nid] || "unclassified";
+            summary.addedFiles[layer] = (summary.addedFiles[layer] || 0) + 1;
+        });
+
+        (diffData.removed_nodes || []).forEach(function (nid) {
+            var layer = lm[nid] || "unclassified";
+            summary.removedFiles[layer] = (summary.removedFiles[layer] || 0) + 1;
+        });
+
+        (diffData.added_edges || []).forEach(function (e) {
+            var sl = lm[e.source] || "unclassified";
+            var tl = lm[e.target] || "unclassified";
+            if (sl !== tl) {
+                var key = sl + ":" + tl;
+                summary.addedEdges[key] = (summary.addedEdges[key] || 0) + 1;
+            }
+        });
+
+        (diffData.removed_edges || []).forEach(function (e) {
+            var sl = lm[e.source] || "unclassified";
+            var tl = lm[e.target] || "unclassified";
+            if (sl !== tl) {
+                var key = sl + ":" + tl;
+                summary.removedEdges[key] = (summary.removedEdges[key] || 0) + 1;
+            }
+        });
+
+        (diffData.new_violations || []).forEach(function (v) {
+            var sl = lm[v.source_node_id] || "unclassified";
+            if (!v.target_node_id || lm[v.target_node_id] === sl) {
+                summary.newLayerViolations[sl] = (summary.newLayerViolations[sl] || 0) + 1;
+            } else {
+                var tl = lm[v.target_node_id] || "unclassified";
+                var key = sl + ":" + tl;
+                summary.newViolations[key] = (summary.newViolations[key] || 0) + 1;
+            }
+        });
+
+        (diffData.resolved_violations || []).forEach(function (v) {
+            var sl = lm[v.source_node_id] || "unclassified";
+            if (!v.target_node_id || lm[v.target_node_id] === sl) {
+                summary.resolvedLayerViolations[sl] = (summary.resolvedLayerViolations[sl] || 0) + 1;
+            } else {
+                var tl = lm[v.target_node_id] || "unclassified";
+                var key = sl + ":" + tl;
+                summary.resolvedViolations[key] = (summary.resolvedViolations[key] || 0) + 1;
+            }
+        });
+
+        return summary;
+    }
+
+    /** Show or hide the diff banner. */
+    function renderDiffBanner() {
+        var banner = document.getElementById("diff-banner");
+        var summaryEl = document.getElementById("diff-summary");
+        var toggleBtn = document.getElementById("diff-toggle");
+
+        if (!state.diffData || !state.diffData.enabled) {
+            banner.style.display = "none";
+            document.body.classList.remove("diff-active");
+            return;
+        }
+
+        banner.style.display = "flex";
+        document.body.classList.add("diff-active");
+        summaryEl.textContent = "Since last snapshot: " + state.diffData.summary;
+        toggleBtn.textContent = state.diffVisible ? "Hide Diff" : "Show Diff";
+
+        toggleBtn.onclick = function () {
+            state.diffVisible = !state.diffVisible;
+            toggleBtn.textContent = state.diffVisible ? "Hide Diff" : "Show Diff";
+            // Re-render current view to apply/remove diff overlay
+            if (state.view === "layers") {
+                renderLayerDiagram();
+            } else if (state.view === "files") {
+                renderFileView();
+            } else if (state.view === "ratsnest") {
+                renderRatsnestView();
+            }
+        };
+    }
+
+    // ------------------------------------------------------------------
     // Initialization
     // ------------------------------------------------------------------
 
     function init() {
         Promise.all([
             fetchJSON("/api/layers"),
-            fetchJSON("/api/config")
+            fetchJSON("/api/config"),
+            fetchJSON("/api/diff")
         ]).then(function (results) {
             state.layerData = results[0];
             state.configData = results[1];
+            state.diffData = results[2];
+
+            renderDiffBanner();
 
             // Handle hash-based routing
             window.addEventListener("hashchange", handleHashChange);
