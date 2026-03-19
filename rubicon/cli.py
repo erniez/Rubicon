@@ -142,7 +142,6 @@ def analyze(
     if serve:
         from rubicon.viz.server import start_server
 
-        typer.echo(f"Starting visualization server on http://127.0.0.1:{port}")
         start_server(graph, config, violations, diff=snapshot_diff, port=port, project_root=path)
         raise typer.Exit()
 

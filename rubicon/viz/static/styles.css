@@ -50,7 +50,7 @@ html, body {
 }
 
 #breadcrumb .crumb {
-    color: #8888aa;
+    color: #9999bb;
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
@@ -59,7 +59,7 @@ html, body {
 
 #breadcrumb .crumb:hover {
     background: #2a2d3a;
-    color: #ccccee;
+    color: #ddddee;
 }
 
 #breadcrumb .crumb.active {
@@ -72,7 +72,7 @@ html, body {
 }
 
 #breadcrumb .separator {
-    color: #555566;
+    color: #777788;
     font-size: 12px;
     user-select: none;
 }
@@ -122,7 +122,7 @@ html, body {
 
 .layer-block .layer-count {
     font-size: 13px;
-    fill: rgba(255, 255, 255, 0.45);
+    fill: rgba(255, 255, 255, 0.6);
     pointer-events: none;
     text-anchor: start;
 }
@@ -207,7 +207,7 @@ html, body {
 }
 
 .tooltip .tt-label {
-    color: #8888aa;
+    color: #9999bb;
 }
 
 .tooltip .tt-value {
@@ -278,7 +278,7 @@ html, body {
 }
 
 .file-layer-badge-text {
-    font-size: 9px;
+    font-size: 11px;
     fill: #ccccdd;
     text-anchor: middle;
     pointer-events: none;
@@ -333,8 +333,8 @@ html, body {
 }
 
 .ratsnest-focus-layer {
-    font-size: 11px;
-    fill: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    fill: rgba(255, 255, 255, 0.7);
     text-anchor: middle;
     pointer-events: none;
 }
@@ -361,7 +361,7 @@ html, body {
 }
 
 .ratsnest-neighbor-badge {
-    font-size: 9px;
+    font-size: 11px;
     fill: #ccccdd;
     text-anchor: middle;
     pointer-events: none;
@@ -370,7 +370,7 @@ html, body {
 
 .ratsnest-direction {
     font-size: 14px;
-    fill: #8888aa;
+    fill: #9999bb;
     pointer-events: none;
 }
 
@@ -386,8 +386,8 @@ html, body {
 }
 
 .ratsnest-edge-label {
-    font-size: 9px;
-    fill: #8888aa;
+    font-size: 11px;
+    fill: #9999bb;
     text-anchor: middle;
     pointer-events: none;
     font-weight: 400;
@@ -429,11 +429,11 @@ html, body {
 #diff-banner #diff-toggle {
     background: #2a3a5a;
     border: 1px solid #3a4a6a;
-    color: #a0b0d0;
+    color: #b0c0e0;
     padding: 4px 12px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
     transition: background 0.15s;
 }
 

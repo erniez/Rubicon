@@ -546,28 +546,66 @@
                         .text("-" + removed + " file" + (removed !== 1 ? "s" : ""));
                 }
 
-                // New/resolved violation badges on layer block
+                // New/resolved violation badges on layer block (with hover tooltips)
                 var newV = layerDiff.newLayerViolations[layer.name] || 0;
                 var resolvedV = layerDiff.resolvedLayerViolations[layer.name] || 0;
                 var violBadgeX = 20;
                 var violBadgeY = diffBadgeY + 16;
                 if (newV > 0) {
                     var newText = newV + " NEW in " + layer.name;
+                    var newViols = layerDiff.newLayerViolationList[layer.name] || [];
                     g.append("text")
                         .attr("class", "diff-tag new diff-viol-badge")
                         .attr("x", violBadgeX)
                         .attr("y", violBadgeY)
                         .attr("font-size", "13px")
-                        .text(newText);
+                        .style("pointer-events", "auto")
+                        .style("cursor", "default")
+                        .text(newText)
+                        .on("mouseover", (function (viols, lName) {
+                            return function (event) {
+                                event.stopPropagation();
+                                var html = '<div class="tt-title">New violations in ' +
+                                    escapeHtml(lName) + '</div>';
+                                viols.forEach(function (v) {
+                                    html += '<div class="tt-row"><span class="tt-violation">' +
+                                        escapeHtml(v.rule) + '</span></div>' +
+                                        '<div class="tt-row"><span class="tt-value">' +
+                                        escapeHtml(v.message) + '</span></div>';
+                                });
+                                showTooltip(html, event);
+                            };
+                        })(newViols, layer.name))
+                        .on("mousemove", positionTooltip)
+                        .on("mouseout", hideTooltip);
                     violBadgeX += newText.length * 7 + 12;
                 }
                 if (resolvedV > 0) {
+                    var resViols = layerDiff.resolvedLayerViolationList[layer.name] || [];
                     g.append("text")
                         .attr("class", "diff-tag resolved")
                         .attr("x", violBadgeX)
                         .attr("y", violBadgeY)
                         .attr("font-size", "13px")
-                        .text("\u2713 " + resolvedV + " RESOLVED in " + layer.name);
+                        .style("pointer-events", "auto")
+                        .style("cursor", "default")
+                        .text("\u2713 " + resolvedV + " RESOLVED in " + layer.name)
+                        .on("mouseover", (function (viols, lName) {
+                            return function (event) {
+                                event.stopPropagation();
+                                var html = '<div class="tt-title">Resolved violations in ' +
+                                    escapeHtml(lName) + '</div>';
+                                viols.forEach(function (v) {
+                                    html += '<div class="tt-row"><span style="color:#3ddc84;font-weight:600">' +
+                                        escapeHtml(v.rule) + '</span></div>' +
+                                        '<div class="tt-row"><span class="tt-value">' +
+                                        escapeHtml(v.message) + '</span></div>';
+                                });
+                                showTooltip(html, event);
+                            };
+                        })(resViols, layer.name))
+                        .on("mousemove", positionTooltip)
+                        .on("mouseout", hideTooltip);
                 }
             }
         });
@@ -695,23 +733,59 @@
                     diffY += 16;
                 }
                 if (diffNewViol > 0) {
+                    var nvViols = layerDiff.newEdgeViolationList[edgeKey] || [];
                     group.append("text")
                         .attr("class", "diff-tag new diff-viol-badge")
                         .attr("x", midX)
                         .attr("y", diffY)
                         .attr("text-anchor", "middle")
                         .attr("font-size", "12px")
-                        .text(diffNewViol + " NEW " + edge.source + "\u2192" + edge.target);
+                        .style("pointer-events", "auto")
+                        .style("cursor", "default")
+                        .text(diffNewViol + " NEW " + edge.source + "\u2192" + edge.target)
+                        .on("mouseover", (function (viols, src, tgt) {
+                            return function (event) {
+                                var html = '<div class="tt-title">New violations: ' +
+                                    escapeHtml(src) + ' \u2192 ' + escapeHtml(tgt) + '</div>';
+                                viols.forEach(function (v) {
+                                    html += '<div class="tt-row"><span class="tt-violation">' +
+                                        escapeHtml(v.rule) + '</span></div>' +
+                                        '<div class="tt-row"><span class="tt-value">' +
+                                        escapeHtml(v.message) + '</span></div>';
+                                });
+                                showTooltip(html, event);
+                            };
+                        })(nvViols, edge.source, edge.target))
+                        .on("mousemove", positionTooltip)
+                        .on("mouseout", hideTooltip);
                     diffY += 16;
                 }
                 if (diffResolved > 0) {
+                    var rvViols = layerDiff.resolvedEdgeViolationList[edgeKey] || [];
                     group.append("text")
                         .attr("class", "diff-tag resolved")
                         .attr("x", midX)
                         .attr("y", diffY)
                         .attr("text-anchor", "middle")
                         .attr("font-size", "12px")
-                        .text("\u2713 " + diffResolved + " RESOLVED " + edge.source + "\u2192" + edge.target);
+                        .style("pointer-events", "auto")
+                        .style("cursor", "default")
+                        .text("\u2713 " + diffResolved + " RESOLVED " + edge.source + "\u2192" + edge.target)
+                        .on("mouseover", (function (viols, src, tgt) {
+                            return function (event) {
+                                var html = '<div class="tt-title">Resolved: ' +
+                                    escapeHtml(src) + ' \u2192 ' + escapeHtml(tgt) + '</div>';
+                                viols.forEach(function (v) {
+                                    html += '<div class="tt-row"><span style="color:#3ddc84;font-weight:600">' +
+                                        escapeHtml(v.rule) + '</span></div>' +
+                                        '<div class="tt-row"><span class="tt-value">' +
+                                        escapeHtml(v.message) + '</span></div>';
+                                });
+                                showTooltip(html, event);
+                            };
+                        })(rvViols, edge.source, edge.target))
+                        .on("mousemove", positionTooltip)
+                        .on("mouseout", hideTooltip);
                 }
             }
         });
@@ -1815,7 +1889,11 @@
             newViolations: {}, // "srcLayer:tgtLayer" -> count
             resolvedViolations: {}, // "srcLayer:tgtLayer" -> count
             newLayerViolations: {},  // layer -> count (node-level or intra-layer)
-            resolvedLayerViolations: {} // layer -> count
+            resolvedLayerViolations: {}, // layer -> count
+            newLayerViolationList: {},   // layer -> [violation, ...]
+            resolvedLayerViolationList: {},
+            newEdgeViolationList: {},    // "srcLayer:tgtLayer" -> [violation, ...]
+            resolvedEdgeViolationList: {}
         };
 
         var lm = diffData.layer_map || {};
@@ -1852,10 +1930,14 @@
             var sl = lm[v.source_node_id] || "unclassified";
             if (!v.target_node_id || lm[v.target_node_id] === sl) {
                 summary.newLayerViolations[sl] = (summary.newLayerViolations[sl] || 0) + 1;
+                if (!summary.newLayerViolationList[sl]) summary.newLayerViolationList[sl] = [];
+                summary.newLayerViolationList[sl].push(v);
             } else {
                 var tl = lm[v.target_node_id] || "unclassified";
                 var key = sl + ":" + tl;
                 summary.newViolations[key] = (summary.newViolations[key] || 0) + 1;
+                if (!summary.newEdgeViolationList[key]) summary.newEdgeViolationList[key] = [];
+                summary.newEdgeViolationList[key].push(v);
             }
         });
 
@@ -1863,10 +1945,14 @@
             var sl = lm[v.source_node_id] || "unclassified";
             if (!v.target_node_id || lm[v.target_node_id] === sl) {
                 summary.resolvedLayerViolations[sl] = (summary.resolvedLayerViolations[sl] || 0) + 1;
+                if (!summary.resolvedLayerViolationList[sl]) summary.resolvedLayerViolationList[sl] = [];
+                summary.resolvedLayerViolationList[sl].push(v);
             } else {
                 var tl = lm[v.target_node_id] || "unclassified";
                 var key = sl + ":" + tl;
                 summary.resolvedViolations[key] = (summary.resolvedViolations[key] || 0) + 1;
+                if (!summary.resolvedEdgeViolationList[key]) summary.resolvedEdgeViolationList[key] = [];
+                summary.resolvedEdgeViolationList[key].push(v);
             }
         });
 

@@ -173,6 +173,21 @@ if STATIC_DIR.is_dir():
 # Server entry point
 # ---------------------------------------------------------------------------
 
+def _find_open_port(start: int, max_attempts: int = 10) -> int | None:
+    """Find an open port starting from `start`, trying up to `max_attempts` ports."""
+    import socket
+
+    for offset in range(max_attempts):
+        port = start + offset
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("127.0.0.1", port))
+                return port
+        except OSError:
+            continue
+    return None
+
+
 def start_server(
     graph: nx.DiGraph,
     config: RubiconConfig,
@@ -183,13 +198,42 @@ def start_server(
 ) -> None:
     """Configure module state and start the uvicorn server.
 
-    This is a blocking call — it runs until the server is stopped.
+    Tries the requested port, then falls back to the next 10 ports.
+    Auto-opens the browser and prints a shutdown message on Ctrl+C.
     """
+    import signal
+    import webbrowser
+
     configure(graph, config, violations, diff, project_root=project_root)
-    logger.info("Starting Rubicon visualization server on port %d", port)
+
+    actual_port = _find_open_port(port)
+    if actual_port is None:
+        logger.error("No available port found in range %d-%d", port, port + 9)
+        raise SystemExit(1)
+
+    if actual_port != port:
+        logger.info("Port %d in use, using %d instead", port, actual_port)
+
+    url = f"http://127.0.0.1:{actual_port}"
+    logger.info("Starting Rubicon visualization server at %s", url)
+
+    # Open browser after a short delay to let the server start
+    import threading
+    threading.Timer(0.8, webbrowser.open, args=[url]).start()
+
+    # Graceful shutdown on Ctrl+C
+    original_sigint = signal.getsignal(signal.SIGINT)
+
+    def _shutdown(sig, frame):
+        print("\nStopping Rubicon server.")
+        signal.signal(signal.SIGINT, original_sigint)
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGINT, _shutdown)
+
     uvicorn.run(
         app,
         host="127.0.0.1",
-        port=port,
+        port=actual_port,
         log_level="info",
     )
