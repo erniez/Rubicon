@@ -128,7 +128,7 @@ def analyze(
         save_snapshot(path, snapshot)
 
     if format == "mermaid":
-        mermaid_output = generate_mermaid(graph, config, violations)
+        mermaid_output = generate_mermaid(graph, config, violations, diff=snapshot_diff)
         if output:
             file_content = mermaid_output
             if output.suffix == ".md":
