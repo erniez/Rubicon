@@ -48,6 +48,55 @@ def _register_adapters() -> None:
     except ImportError:
         logger.debug("tree-sitter-swift not available")
 
+    try:
+        import tree_sitter_go as tsgo
+        from rubicon.parser.adapters.go import extract_relationships as go_extract
+        _ADAPTERS["go"] = (tsgo.language, go_extract)
+    except ImportError:
+        logger.debug("tree-sitter-go not available")
+
+    try:
+        import tree_sitter_rust as tsrs
+        from rubicon.parser.adapters.rust import extract_relationships as rs_extract
+        _ADAPTERS["rust"] = (tsrs.language, rs_extract)
+    except ImportError:
+        logger.debug("tree-sitter-rust not available")
+
+    try:
+        import tree_sitter_java as tsj
+        from rubicon.parser.adapters.java import extract_relationships as java_extract
+        _ADAPTERS["java"] = (tsj.language, java_extract)
+    except ImportError:
+        logger.debug("tree-sitter-java not available")
+
+    try:
+        import tree_sitter_c_sharp as tscs
+        from rubicon.parser.adapters.csharp import extract_relationships as cs_extract
+        _ADAPTERS["csharp"] = (tscs.language, cs_extract)
+    except ImportError:
+        logger.debug("tree-sitter-c-sharp not available")
+
+    try:
+        import tree_sitter_c as tsc
+        from rubicon.parser.adapters.c import extract_relationships as c_extract
+        _ADAPTERS["c"] = (tsc.language, c_extract)
+    except ImportError:
+        logger.debug("tree-sitter-c not available")
+
+    try:
+        import tree_sitter_cpp as tscpp
+        from rubicon.parser.adapters.cpp import extract_relationships as cpp_extract
+        _ADAPTERS["cpp"] = (tscpp.language, cpp_extract)
+    except ImportError:
+        logger.debug("tree-sitter-cpp not available")
+
+    try:
+        import tree_sitter_ruby as tsrb
+        from rubicon.parser.adapters.ruby import extract_relationships as rb_extract
+        _ADAPTERS["ruby"] = (tsrb.language, rb_extract)
+    except ImportError:
+        logger.debug("tree-sitter-ruby not available")
+
 
 def parse_file(
     source_file: Path, language: str, content: str

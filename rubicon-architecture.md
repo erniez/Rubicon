@@ -15,7 +15,7 @@ graph TD
     CLI[CLI Entry Point] --> Crawler[File Crawler]
     Crawler --> Parser[Tree-sitter Parser]
     Parser --> RawGraph[Raw Graph Builder]
-    RawGraph --> Classifier[LLM Layer Classifier]
+    RawGraph --> Classifier[LLM Layer Classifier Phase 4]
     Classifier --> LayeredGraph[Layered Graph]
     LayeredGraph --> RuleEngine[Rule Engine / DRC]
     LayeredGraph --> Snapshot[Snapshot Engine]
@@ -133,13 +133,13 @@ Edge {
 
 ---
 
-### 5. LLM Layer Classifier
+### 5. LLM Layer Classifier *(Phase 4)*
 
 Assigns each file/module to an architectural layer.
 
 **First run workflow:**
 1. Sample representative files from each directory (up to 3 per directory)
-2. Send to Claude API with a prompt like:
+2. Send to LLM provider with a classification prompt (provider is abstracted behind a protocol interface; Claude is the default):
 
 ```
 Given this file from a software project, classify it into one of these
@@ -376,10 +376,10 @@ sequenceDiagram
     CLI->>Crawler: scan directory
     Crawler->>Parser: for each source file
     Parser->>Graph: emit relationships
-    Graph->>LLM: classify untagged files
-    LLM->>User: propose layer map (first run only)
-    User->>LLM: confirm/adjust
-    LLM->>Graph: apply layer assignments
+    Graph->>LLM: classify untagged files (Phase 4)
+    LLM->>User: propose layer map (first run only, Phase 4)
+    User->>LLM: confirm/adjust (Phase 4)
+    LLM->>Graph: apply layer assignments (Phase 4)
     Graph->>Rules: validate
     Rules->>Graph: annotate violations
     Graph->>Viz: serve interactive UI
@@ -395,7 +395,7 @@ sequenceDiagram
 | CLI | Python + Typer | Fast to build, good ecosystem |
 | File parsing | Tree-sitter (via py-tree-sitter) | Language-agnostic AST parsing |
 | Graph model | NetworkX | Cycle detection, pathfinding built-in |
-| LLM classification | Claude API (claude-sonnet-4-20250514) | Cost-effective for classification tasks |
+| LLM classification *(Phase 4)* | Abstracted provider interface; Claude API default | Cost-effective for classification tasks |
 | Web server | FastAPI | Lightweight, async, serves static + API |
 | Visualization | D3.js (force-directed + custom layouts) | Gold standard for interactive graphs |
 | Snapshot storage | JSON files in .rubicon/snapshots/ | Simple, diffable, no database needed |
@@ -427,16 +427,7 @@ sequenceDiagram
 
 **Deliverable:** Full interactive browser UI with PCB-style exploration and the ability to see what changed between agent runs.
 
-### Phase 3 — LLM Intelligence (1 week)
-- LLM-based layer auto-classification via Claude API
-- Incremental reclassification: only re-classify new or changed files on subsequent runs
-- Interactive first-run flow: LLM proposes layer map, user confirms/adjusts, config is saved
-- Natural language violation explanations (click a violation, get a plain-English description of why it's a problem)
-- Optional: "explain this architecture" one-paragraph summary generation
-
-**Deliverable:** Zero-config first run — point at any repo, get a fully classified architecture map without hand-writing a config file.
-
-### Phase 4 — Language Expansion + Polish (ongoing)
+### Phase 3 — Language Expansion + Polish (ongoing)
 - Additional Tree-sitter adapters: Swift, Go, Rust, Java, C#, C/C++
 - Regex fallback parser for languages without a Tree-sitter adapter
 - Custom rule definitions via config (pattern-based rules like "ViewModels must live in presentation layer")
@@ -445,6 +436,16 @@ sequenceDiagram
 - CI integration: run `rubicon --check` in a pipeline, fail on new violations
 
 **Deliverable:** Broad language support, CI-ready, and a polished daily-driver tool.
+
+### Phase 4 — LLM Intelligence (1 week)
+- Abstract LLM provider interface (protocol class) with Claude as the default implementation, swappable for OpenAI, Ollama, etc.
+- LLM-based layer auto-classification via configurable provider
+- Incremental reclassification: only re-classify new or changed files on subsequent runs
+- Interactive first-run flow: LLM proposes layer map, user confirms/adjusts, config is saved
+- Natural language violation explanations (click a violation, get a plain-English description of why it's a problem)
+- Optional: "explain this architecture" one-paragraph summary generation
+
+**Deliverable:** Zero-config first run — point at any repo, get a fully classified architecture map without hand-writing a config file.
 
 ---
 
@@ -471,7 +472,9 @@ rubicon/
 │   ├── builder.py          # assembles raw graph from parser output
 │   └── layered.py          # applies layer classifications to graph
 ├── classifier/
-│   ├── llm.py              # Claude API layer classification
+│   ├── provider.py         # LLM provider protocol interface (Phase 4)
+│   ├── anthropic.py        # Claude/Anthropic provider implementation (Phase 4)
+│   ├── llm.py              # LLM classification orchestration (Phase 4)
 │   ├── heuristic.py        # rule-based fallback classification
 │   └── config.py           # .rubicon read/write
 ├── rules/
