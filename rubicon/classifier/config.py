@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from rubicon.models import ALL_BUILTIN_RULES, LayerConfig, RubiconConfig
+from rubicon.models import ALL_BUILTIN_RULES, CustomRuleConfig, LayerConfig, RubiconConfig
 
 logger = logging.getLogger(__name__)
 
@@ -61,5 +61,20 @@ def _parse_config(raw: dict) -> RubiconConfig:
     raw_rules = raw.get("rules")
     if isinstance(raw_rules, list):
         config.rules = [str(r) for r in raw_rules]
+
+    # Parse custom_rules
+    raw_custom = raw.get("custom_rules", [])
+    if isinstance(raw_custom, list):
+        for entry in raw_custom:
+            if isinstance(entry, dict):
+                config.custom_rules.append(CustomRuleConfig(
+                    name=str(entry.get("name", "")),
+                    pattern=str(entry.get("pattern", "")),
+                    layer=str(entry.get("layer", "")),
+                    source_layer=str(entry.get("source_layer", "")),
+                    forbidden_imports=entry.get("forbidden_imports", []),
+                    message=str(entry.get("message", "")),
+                    severity=str(entry.get("severity", "warning")),
+                ))
 
     return config

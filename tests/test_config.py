@@ -8,6 +8,7 @@ from rubicon.models import ALL_BUILTIN_RULES
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE = FIXTURES / "sample_project"
 MALFORMED = FIXTURES / "malformed_rubicon"
+CUSTOM_RULES = FIXTURES / "custom_rules_project"
 
 
 class TestLoadConfig:
@@ -74,6 +75,32 @@ class TestMissingConfig:
         # A real directory that has no .rubicon file
         config = load_config(Path(__file__).parent)
         assert config.layers == {}
+
+
+class TestCustomRulesConfig:
+    def test_loads_custom_rules(self) -> None:
+        config = load_config(CUSTOM_RULES)
+        assert len(config.custom_rules) == 2
+
+    def test_file_layer_rule_fields(self) -> None:
+        config = load_config(CUSTOM_RULES)
+        rule = config.custom_rules[0]
+        assert rule.name == "viewmodels_in_presentation"
+        assert rule.pattern == "*ViewModel*"
+        assert rule.layer == "presentation"
+        assert rule.message == "ViewModels must live in the presentation layer"
+        assert rule.severity == "error"
+
+    def test_forbidden_imports_rule_fields(self) -> None:
+        config = load_config(CUSTOM_RULES)
+        rule = config.custom_rules[1]
+        assert rule.name == "no_database_in_domain"
+        assert rule.source_layer == "domain"
+        assert rule.forbidden_imports == ["sqlalchemy", "django.db"]
+
+    def test_no_custom_rules_returns_empty_list(self) -> None:
+        config = load_config(SAMPLE)
+        assert config.custom_rules == []
 
 
 class TestMalformedConfig:

@@ -1,0 +1,31 @@
+layers:
+  presentation:
+    directories:
+      - app/ui/
+    color: "#4A90D9"
+
+  domain:
+    directories:
+      - app/models/
+    color: "#50C878"
+
+layer_order:
+  - presentation
+  - domain
+
+rules:
+  - no_upward_dependency
+
+custom_rules:
+  - name: "viewmodels_in_presentation"
+    pattern: "*ViewModel*"
+    layer: presentation
+    message: "ViewModels must live in the presentation layer"
+    severity: error
+
+  - name: "no_database_in_domain"
+    source_layer: domain
+    forbidden_imports:
+      - sqlalchemy
+      - django.db
+    message: "Domain layer must not import database packages"

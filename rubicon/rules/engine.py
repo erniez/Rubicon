@@ -32,4 +32,9 @@ def run_rules(
             continue
         violations.extend(rule_fn(graph, config))
 
+    # Run custom rules from .rubicon config
+    if config.custom_rules:
+        from rubicon.rules.custom import run_custom_rules
+        violations.extend(run_custom_rules(graph, config))
+
     return violations

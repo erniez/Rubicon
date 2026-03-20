@@ -133,6 +133,19 @@ class LayerConfig:
 
 
 @dataclass
+class CustomRuleConfig:
+    """A user-defined architecture rule from .rubicon config."""
+
+    name: str = ""
+    pattern: str = ""
+    layer: str = ""
+    source_layer: str = ""
+    forbidden_imports: list[str] = field(default_factory=list)
+    message: str = ""
+    severity: str = "warning"
+
+
+@dataclass
 class RubiconConfig:
     """Parsed .rubicon configuration."""
 
@@ -140,6 +153,7 @@ class RubiconConfig:
     layer_order: list[str] = field(default_factory=list)
     foundation_layers: list[str] = field(default_factory=list)
     rules: list[str] = field(default_factory=lambda: list(ALL_BUILTIN_RULES))
+    custom_rules: list[CustomRuleConfig] = field(default_factory=list)
 
     @property
     def layer_map(self) -> dict[str, list[str]]:
