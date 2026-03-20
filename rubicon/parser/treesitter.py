@@ -116,8 +116,10 @@ def parse_file(
 
     adapter = _ADAPTERS.get(language)
     if adapter is None:
-        logger.debug("No adapter for language: %s", language)
-        return []
+        # Regex fallback for languages without tree-sitter adapters.
+        # To remove: delete this block and rubicon/parser/regex_fallback.py
+        from rubicon.parser.regex_fallback import extract_imports
+        return extract_imports(source_file, language, content)
 
     lang_fn, extract_fn = adapter
     ts_language = Language(lang_fn())
