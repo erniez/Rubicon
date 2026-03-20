@@ -35,7 +35,6 @@ dev = [
     "mypy>=1.0",
     "httpx>=0.24",
 ]
-
 [project.scripts]
 rubicon = "rubicon.cli:app"
 

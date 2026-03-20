@@ -79,6 +79,11 @@ def analyze(
         "--port",
         help="Port for the visualization server.",
     ),
+    export: bool = typer.Option(
+        False,
+        "--export",
+        help="Export architecture diagram as SVG.",
+    ),
 ) -> None:
     """Analyze a project's architecture."""
     typer.echo(f"Analyzing: {path}")
@@ -126,6 +131,14 @@ def analyze(
         commit_hash = get_commit_hash(path)
         snapshot = graph_to_snapshot(graph, violations, config, commit_hash)
         save_snapshot(path, snapshot)
+
+    if export:
+        from rubicon.export import export_to_file
+
+        export_path = output or Path("rubicon-architecture.svg")
+        export_to_file(graph, config, violations, export_path)
+        typer.echo(f"Diagram exported to {export_path}")
+        raise typer.Exit()
 
     if format == "mermaid":
         mermaid_output = generate_mermaid(graph, config, violations, diff=snapshot_diff)
