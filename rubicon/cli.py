@@ -162,3 +162,73 @@ def analyze(
 
     has_errors = any(v.severity == Severity.ERROR for v in violations)
     raise typer.Exit(code=1 if has_errors else 0)
+
+
+@app.command()
+def check(
+    path: Path = typer.Argument(
+        ...,
+        help="Path to the project root to check.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+    fail_on: str = typer.Option(
+        "warning",
+        "--fail-on",
+        help="Minimum severity to fail: error, warning, info.",
+    ),
+) -> None:
+    """Check architecture rules and exit non-zero on violations. Designed for CI pipelines.
+
+    Produces compact output, saves no snapshots, and returns exit code 1
+    if any violations at or above --fail-on severity are found.
+    """
+    files = scan(path)
+    graph = build_graph(files)
+    config = load_config(path)
+    apply_layers(graph, config.layer_map)
+    violations = run_rules(graph, config)
+
+    severity_threshold = _parse_severity(fail_on)
+    if severity_threshold is None:
+        typer.echo(f"Unknown severity: {fail_on}. Use error, warning, or info.", err=True)
+        raise typer.Exit(code=2)
+
+    failing = [v for v in violations if _severity_rank(v.severity) >= _severity_rank(severity_threshold)]
+
+    if not violations:
+        typer.echo("rubicon: no violations found")
+        raise typer.Exit(code=0)
+
+    # Print violations in a compact, grep-friendly format
+    for v in violations:
+        marker = "FAIL" if v in failing else "PASS"
+        target = f" -> {v.target_node_id}" if v.target_node_id else ""
+        typer.echo(f"[{marker}] {v.severity.value.upper()} {v.rule}: {v.source_node_id}{target}: {v.message}")
+
+    # Summary
+    error_count = sum(1 for v in violations if v.severity == Severity.ERROR)
+    warning_count = sum(1 for v in violations if v.severity == Severity.WARNING)
+    info_count = sum(1 for v in violations if v.severity == Severity.INFO)
+    typer.echo(f"\nrubicon: {error_count} errors, {warning_count} warnings, {info_count} info")
+
+    raise typer.Exit(code=1 if failing else 0)
+
+
+_SEVERITY_RANKS = {
+    Severity.INFO: 0,
+    Severity.WARNING: 1,
+    Severity.ERROR: 2,
+}
+
+
+def _severity_rank(severity: Severity) -> int:
+    return _SEVERITY_RANKS.get(severity, 0)
+
+
+def _parse_severity(value: str) -> Severity | None:
+    try:
+        return Severity(value.lower())
+    except ValueError:
+        return None

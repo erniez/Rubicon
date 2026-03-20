@@ -432,7 +432,6 @@ sequenceDiagram
 - Regex fallback parser for languages without a Tree-sitter adapter
 - Custom rule definitions via config (pattern-based rules like "ViewModels must live in presentation layer")
 - Export options: SVG, PNG, PDF for sharing architecture diagrams
-- Watch mode: auto-re-scan when files change (useful during active agentic sessions)
 - CI integration: run `rubicon --check` in a pipeline, fail on new violations
 
 **Deliverable:** Broad language support, CI-ready, and a polished daily-driver tool.
