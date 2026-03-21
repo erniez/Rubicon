@@ -68,8 +68,9 @@ def export_svg(
         layer = graph.nodes[node_id].get("layer", "unclassified")
         layer_files[layer] += 1
 
-    # Determine layer display order
-    layers_to_show = _resolve_layer_order(config, layer_files)
+    # Determine layer rows (groups of layers at the same level)
+    rows = _resolve_layer_rows(config, layer_files)
+    layers_to_show = [layer for row in rows for layer in row]
 
     # Collect inter-layer edges
     layer_edges: dict[tuple[str, str], int] = Counter()
@@ -90,11 +91,12 @@ def export_svg(
         if s_layer != t_layer:
             violation_edges[(s_layer, t_layer)] += 1
 
-    # Compute band heights
+    # Compute row heights (tallest band in each row)
     band_heights = _compute_band_heights(layers_to_show, layer_files)
+    row_heights = [max(band_heights[l] for l in row) for row in rows]
 
     # Calculate total canvas height
-    bands_total_height = sum(band_heights.values()) + _BAND_GAP * max(len(layers_to_show) - 1, 0)
+    bands_total_height = sum(row_heights) + _BAND_GAP * max(len(rows) - 1, 0)
     canvas_height = _PADDING_TOP + bands_total_height + _LEGEND_HEIGHT + 40
 
     # Build SVG document
@@ -116,54 +118,58 @@ def export_svg(
     )
 
     # Draw layer bands
-    band_x = _PADDING_X
-    band_width = width - 2 * _PADDING_X - _EDGE_AREA_WIDTH
+    total_band_width = width - 2 * _PADDING_X - _EDGE_AREA_WIDTH
     band_y_positions: dict[str, tuple[float, float]] = {}
     current_y = float(_PADDING_TOP)
 
-    for layer in layers_to_show:
-        band_h = band_heights[layer]
-        color = _get_layer_color(config, layer)
-        fill_with_alpha = color + "33"  # ~20% alpha
+    for row_idx, row in enumerate(rows):
+        row_h = row_heights[row_idx]
+        band_gap_within = 6
+        col_count = len(row)
+        col_width = (total_band_width - band_gap_within * (col_count - 1)) / col_count
 
-        _add_rect(
-            svg, band_x, current_y, band_width, band_h,
-            fill=fill_with_alpha,
-            stroke=color,
-            stroke_width=2,
-            rx=_BAND_CORNER_RADIUS,
-        )
+        for col_idx, layer in enumerate(row):
+            band_x = _PADDING_X + col_idx * (col_width + band_gap_within)
+            color = _get_layer_color(config, layer)
+            fill_with_alpha = color + "33"
 
-        # Layer name (left-aligned)
-        label_y = current_y + band_h / 2
-        name_upper = layer.replace("_", " ").upper()
-        _add_text(
-            svg, band_x + 16, label_y,
-            name_upper,
-            font_size=_LAYER_LABEL_FONT_SIZE,
-            font_weight="bold",
-            fill=_COLOR_TEXT_DARK,
-            anchor="start",
-            dominant_baseline="central",
-        )
+            _add_rect(
+                svg, band_x, current_y, col_width, row_h,
+                fill=fill_with_alpha,
+                stroke=color,
+                stroke_width=2,
+                rx=_BAND_CORNER_RADIUS,
+            )
 
-        # File count (right-aligned)
-        count = layer_files.get(layer, 0)
-        file_label = f"{count} file{'s' if count != 1 else ''}"
-        _add_text(
-            svg, band_x + band_width - 16, label_y,
-            file_label,
-            font_size=_COUNT_FONT_SIZE,
-            fill=_COLOR_TEXT_DARK,
-            anchor="end",
-            dominant_baseline="central",
-        )
+            label_y = current_y + row_h / 2
+            name_upper = layer.replace("_", " ").upper()
+            _add_text(
+                svg, band_x + 16, label_y,
+                name_upper,
+                font_size=_LAYER_LABEL_FONT_SIZE,
+                font_weight="bold",
+                fill=_COLOR_TEXT_DARK,
+                anchor="start",
+                dominant_baseline="central",
+            )
 
-        band_y_positions[layer] = (current_y, band_h)
-        current_y += band_h + _BAND_GAP
+            count = layer_files.get(layer, 0)
+            file_label = f"{count} file{'s' if count != 1 else ''}"
+            _add_text(
+                svg, band_x + col_width - 16, label_y,
+                file_label,
+                font_size=_COUNT_FONT_SIZE,
+                fill=_COLOR_TEXT_DARK,
+                anchor="end",
+                dominant_baseline="central",
+            )
+
+            band_y_positions[layer] = (current_y, row_h)
+
+        current_y += row_h + _BAND_GAP
 
     # Draw inter-layer edge arrows
-    edge_x_base = band_x + band_width + 20
+    edge_x_base = _PADDING_X + total_band_width + 20
     _draw_edges(
         svg, layers_to_show, band_y_positions,
         layer_edges, violation_edges,
@@ -200,18 +206,19 @@ def export_to_file(
 # Internal helpers: layout
 # ---------------------------------------------------------------------------
 
-def _resolve_layer_order(
+def _resolve_layer_rows(
     config: RubiconConfig,
     layer_files: dict[str, int],
-) -> list[str]:
-    """Determine which layers to show and in what order."""
-    layers = list(config.layer_order)
-    for layer in sorted(layer_files.keys()):
-        if layer not in layers and layer != "unclassified":
-            layers.append(layer)
+) -> list[list[str]]:
+    """Determine which layer rows to show and in what order."""
+    rows = [list(row) for row in config.layer_rows]
+    known = set(config.flat_layer_order)
+    extras = sorted(l for l in layer_files if l not in known and l != "unclassified")
+    if extras:
+        rows.append(extras)
     if layer_files.get("unclassified", 0) > 0:
-        layers.append("unclassified")
-    return layers
+        rows.append(["unclassified"])
+    return rows
 
 
 def _compute_band_heights(

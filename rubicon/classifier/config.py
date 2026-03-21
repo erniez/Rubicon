@@ -47,10 +47,16 @@ def _parse_config(raw: dict) -> RubiconConfig:
                     color=layer_data.get("color", ""),
                 )
 
-    # Parse layer_order
+    # Parse layer_order — items can be strings or lists of strings (groups)
     raw_order = raw.get("layer_order", [])
     if isinstance(raw_order, list):
-        config.layer_order = [str(item) for item in raw_order]
+        parsed_order: list[str | list[str]] = []
+        for item in raw_order:
+            if isinstance(item, list):
+                parsed_order.append([str(s) for s in item])
+            else:
+                parsed_order.append(str(item))
+        config.layer_order = parsed_order
 
     # Parse foundation_layers
     raw_foundation = raw.get("foundation_layers", [])

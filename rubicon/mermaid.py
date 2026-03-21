@@ -32,29 +32,40 @@ def generate_mermaid(
         layer = graph.nodes[node_id].get("layer", "unclassified")
         layer_files[layer] += 1
 
-    # Determine which layers to show (use layer_order, then any extras)
-    layers_to_show = list(config.layer_order)
-    for layer in sorted(layer_files.keys()):
-        if layer not in layers_to_show and layer != "unclassified":
-            layers_to_show.append(layer)
+    # Determine rows to show (use layer_rows, then any extras)
+    rows = [list(row) for row in config.layer_rows]
+    known = set(config.flat_layer_order)
+    extras = sorted(l for l in layer_files if l not in known and l != "unclassified")
+    if extras:
+        rows.append(extras)
     if layer_files.get("unclassified", 0) > 0:
-        layers_to_show.append("unclassified")
+        rows.append(["unclassified"])
+
+    # Flat list of all layers for edge/style iteration
+    layers_to_show = [layer for row in rows for layer in row]
 
     # Emit layer nodes — wide band labels to mimic strata
-    for layer in layers_to_show:
-        count = layer_files.get(layer, 0)
-        name_upper = layer.replace("_", " ").upper()
-        file_label = f"{count} file{'s' if count != 1 else ''}"
-        # Pad with spaces to create a wider band appearance
-        pad = "\u2003" * 4  # em-spaces for visual width
-        node_id = _sanitize_id(layer)
-        lines.append(f'    {node_id}["{pad}{name_upper}{pad}{pad}{file_label}{pad}"]')
+    for row in rows:
+        if len(row) > 1:
+            group_id = _sanitize_id("_".join(row))
+            lines.append(f"    subgraph {group_id}[ ]")
+            lines.append(f"        direction LR")
+        for layer in row:
+            count = layer_files.get(layer, 0)
+            name_upper = layer.replace("_", " ").upper()
+            file_label = f"{count} file{'s' if count != 1 else ''}"
+            pad = "\u2003" * 4
+            node_id = _sanitize_id(layer)
+            indent = "        " if len(row) > 1 else "    "
+            lines.append(f'{indent}{node_id}["{pad}{name_upper}{pad}{pad}{file_label}{pad}"]')
+        if len(row) > 1:
+            lines.append("    end")
 
-    # Invisible edges to enforce top-to-bottom layer ordering
-    if len(layers_to_show) > 1:
-        for i in range(len(layers_to_show) - 1):
-            s_id = _sanitize_id(layers_to_show[i])
-            t_id = _sanitize_id(layers_to_show[i + 1])
+    # Invisible edges to enforce top-to-bottom row ordering
+    if len(rows) > 1:
+        for i in range(len(rows) - 1):
+            s_id = _sanitize_id(rows[i][0])
+            t_id = _sanitize_id(rows[i + 1][0])
             lines.append(f"    {s_id} ~~~ {t_id}")
 
     # Collect inter-layer edge counts

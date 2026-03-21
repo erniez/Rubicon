@@ -332,7 +332,7 @@ def _ordered_layers(config: RubiconConfig, layer_files: dict[str, int]) -> list[
     alphabetically, and finally "unclassified" if present.
     """
     layers: list[str] = []
-    for layer in config.layer_order:
+    for layer in config.flat_layer_order:
         if layer_files.get(layer, 0) > 0:
             layers.append(layer)
     for layer in sorted(layer_files.keys()):

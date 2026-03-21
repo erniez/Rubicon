@@ -150,7 +150,7 @@ class RubiconConfig:
     """Parsed .rubicon configuration."""
 
     layers: dict[str, LayerConfig] = field(default_factory=dict)
-    layer_order: list[str] = field(default_factory=list)
+    layer_order: list[str | list[str]] = field(default_factory=list)
     foundation_layers: list[str] = field(default_factory=list)
     rules: list[str] = field(default_factory=lambda: list(ALL_BUILTIN_RULES))
     custom_rules: list[CustomRuleConfig] = field(default_factory=list)
@@ -160,9 +160,34 @@ class RubiconConfig:
         """Return layer name -> directory list mapping for use with apply_layers."""
         return {name: lc.directories for name, lc in self.layers.items()}
 
+    @property
+    def flat_layer_order(self) -> list[str]:
+        """Return all layer names in order, flattening any groups."""
+        result: list[str] = []
+        for entry in self.layer_order:
+            if isinstance(entry, list):
+                result.extend(entry)
+            else:
+                result.append(entry)
+        return result
+
+    @property
+    def layer_rows(self) -> list[list[str]]:
+        """Return layer_order as a list of rows, each row being a list of layer names."""
+        result: list[list[str]] = []
+        for entry in self.layer_order:
+            if isinstance(entry, list):
+                result.append(entry)
+            else:
+                result.append([entry])
+        return result
+
     def layer_index(self, layer_name: str) -> int | None:
-        """Return the position of a layer in the layer order, or None if absent."""
-        try:
-            return self.layer_order.index(layer_name)
-        except ValueError:
-            return None
+        """Return the row index of a layer. Grouped layers share the same index."""
+        for i, entry in enumerate(self.layer_order):
+            if isinstance(entry, list):
+                if layer_name in entry:
+                    return i
+            elif entry == layer_name:
+                return i
+        return None
