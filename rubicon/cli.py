@@ -104,6 +104,10 @@ def analyze(
         raise typer.Exit()
 
     config = load_config(path)
+    if not config.layers and not (path / ".rubicon").is_file():
+        typer.echo("No .rubicon config found. Run 'rubicon init' to get started.", err=True)
+        raise typer.Exit(code=1)
+
     apply_layers(graph, config.layer_map, config.layer_patterns)
 
     violations = run_rules(graph, config)
@@ -189,6 +193,10 @@ def check(
     files = scan(path)
     graph = build_graph(files)
     config = load_config(path)
+    if not config.layers and not (path / ".rubicon").is_file():
+        typer.echo("No .rubicon config found. Run 'rubicon init' to get started.", err=True)
+        raise typer.Exit(code=1)
+
     apply_layers(graph, config.layer_map, config.layer_patterns)
     violations = run_rules(graph, config)
 
