@@ -129,6 +129,7 @@ class LayerConfig:
     """Configuration for a single architectural layer."""
 
     directories: list[str] = field(default_factory=list)
+    patterns: list[str] = field(default_factory=list)
     color: str = ""
 
 
@@ -159,6 +160,11 @@ class RubiconConfig:
     def layer_map(self) -> dict[str, list[str]]:
         """Return layer name -> directory list mapping for use with apply_layers."""
         return {name: lc.directories for name, lc in self.layers.items()}
+
+    @property
+    def layer_patterns(self) -> dict[str, list[str]]:
+        """Return layer name -> file pattern list mapping for use with apply_layers."""
+        return {name: lc.patterns for name, lc in self.layers.items() if lc.patterns}
 
     @property
     def flat_layer_order(self) -> list[str]:

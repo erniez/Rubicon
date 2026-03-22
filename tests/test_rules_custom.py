@@ -131,6 +131,7 @@ class TestFileLayerRule:
         assert violations[0].severity == Severity.WARNING
 
 
+
 # ── Forbidden imports ────────────────────────────────────────────
 
 

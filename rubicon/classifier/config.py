@@ -44,6 +44,7 @@ def _parse_config(raw: dict) -> RubiconConfig:
             if isinstance(layer_data, dict):
                 config.layers[name] = LayerConfig(
                     directories=layer_data.get("directories", []),
+                    patterns=layer_data.get("patterns", []),
                     color=layer_data.get("color", ""),
                 )
 

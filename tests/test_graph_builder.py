@@ -177,3 +177,36 @@ class TestApplyLayers:
         apply_layers(graph, {})
 
         assert graph.nodes["app.py"]["layer"] == "unclassified"
+
+    def test_pattern_classifies_by_filename(self) -> None:
+        rels = [_rel("ui/screens/ActiveShoesInteractor.kt", "x", RelationshipType.IMPORT, "ui/screens/ActiveShoesInteractor.kt")]
+        graph = build_graph_from_relationships(rels)
+
+        layer_map = {"presentation": ["ui/"]}
+        layer_patterns = {"domain": ["*Interactor*"]}
+        apply_layers(graph, layer_map, layer_patterns)
+
+        assert graph.nodes["ui/screens/ActiveShoesInteractor.kt"]["layer"] == "domain"
+
+    def test_pattern_takes_priority_over_directory(self) -> None:
+        rels = [
+            _rel("ui/screens/HomeScreen.kt", "x", RelationshipType.IMPORT, "ui/screens/HomeScreen.kt"),
+            _rel("ui/screens/HomeInteractor.kt", "x", RelationshipType.IMPORT, "ui/screens/HomeInteractor.kt"),
+        ]
+        graph = build_graph_from_relationships(rels)
+
+        layer_map = {"presentation": ["ui/"]}
+        layer_patterns = {"domain": ["*Interactor*"]}
+        apply_layers(graph, layer_map, layer_patterns)
+
+        assert graph.nodes["ui/screens/HomeScreen.kt"]["layer"] == "presentation"
+        assert graph.nodes["ui/screens/HomeInteractor.kt"]["layer"] == "domain"
+
+    def test_no_patterns_falls_back_to_directory(self) -> None:
+        rels = [_rel("ui/screens/HomeScreen.kt", "x", RelationshipType.IMPORT, "ui/screens/HomeScreen.kt")]
+        graph = build_graph_from_relationships(rels)
+
+        layer_map = {"presentation": ["ui/"]}
+        apply_layers(graph, layer_map)
+
+        assert graph.nodes["ui/screens/HomeScreen.kt"]["layer"] == "presentation"

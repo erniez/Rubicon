@@ -104,7 +104,7 @@ def analyze(
         raise typer.Exit()
 
     config = load_config(path)
-    apply_layers(graph, config.layer_map)
+    apply_layers(graph, config.layer_map, config.layer_patterns)
 
     violations = run_rules(graph, config)
 
@@ -189,7 +189,7 @@ def check(
     files = scan(path)
     graph = build_graph(files)
     config = load_config(path)
-    apply_layers(graph, config.layer_map)
+    apply_layers(graph, config.layer_map, config.layer_patterns)
     violations = run_rules(graph, config)
 
     severity_threshold = _parse_severity(fail_on)
