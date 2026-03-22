@@ -29,7 +29,7 @@ layer_order:
   - presentation
   - domain
   - data
-  - networking
+  - [networking, utilities]
 
 rules:
   - no_upward_dependency
