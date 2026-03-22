@@ -1,12 +1,14 @@
+from collections import Counter
 from pathlib import Path
 
 import typer
+import yaml
 
 from rubicon.classifier.config import load_config
 from rubicon.crawler.scanner import scan
 from rubicon.graph.builder import build_graph, graph_summary
 from rubicon.graph.layered import apply_layers
-from rubicon.models import Severity
+from rubicon.models import ALL_BUILTIN_RULES, Severity
 from rubicon.mermaid import generate_mermaid
 from rubicon.reporter import report_violations
 from rubicon.rules.engine import run_rules
@@ -214,6 +216,121 @@ def check(
     typer.echo(f"\nrubicon: {error_count} errors, {warning_count} warnings, {info_count} info")
 
     raise typer.Exit(code=1 if failing else 0)
+
+
+@app.command()
+def init(
+    path: Path = typer.Argument(
+        ".",
+        help="Path to the project root.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+) -> None:
+    """Generate a .rubicon config by scanning the project and prompting for layer assignments."""
+    config_path = path / ".rubicon"
+    if config_path.exists():
+        overwrite = typer.confirm(f"{config_path} already exists. Overwrite?", default=False)
+        if not overwrite:
+            raise typer.Exit()
+
+    typer.echo(f"Scanning {path} for source files...")
+    files = scan(path)
+
+    if not files:
+        typer.echo("No source files found.", err=True)
+        raise typer.Exit(code=1)
+
+    # Discover top-level directories that contain source files
+    dir_counts: Counter[str] = Counter()
+    for f in files:
+        parts = f.path.parts
+        top_dir = parts[0] if len(parts) > 1 else "."
+        dir_counts[top_dir] += 1
+
+    typer.echo(f"\nFound {len(files)} source files in {len(dir_counts)} directories:\n")
+    sorted_dirs = sorted(dir_counts.items(), key=lambda x: -x[1])
+    for i, (d, count) in enumerate(sorted_dirs, 1):
+        typer.echo(f"  {i}. {d}/ ({count} files)")
+
+    # Prompt for layer assignments
+    typer.echo("\n--- Layer Assignment ---")
+    typer.echo("For each directory, enter a layer name (e.g. presentation, domain, data).")
+    typer.echo("Press Enter to skip a directory.\n")
+
+    layers: dict[str, list[str]] = {}
+    for d, count in sorted_dirs:
+        layer = typer.prompt(f"  {d}/ ({count} files) -> layer", default="", show_default=False).strip()
+        if layer:
+            if layer not in layers:
+                layers[layer] = []
+            layers[layer].append(f"{d}/")
+
+    if not layers:
+        typer.echo("No layers assigned. Aborting.", err=True)
+        raise typer.Exit(code=1)
+
+    # Prompt for layer order
+    layer_names = list(layers.keys())
+    typer.echo(f"\n--- Layer Order (top to bottom) ---")
+    typer.echo(f"Layers found: {', '.join(layer_names)}")
+    typer.echo("Enter layer names in order from top (presentation) to bottom (infrastructure).")
+    typer.echo("Separate with commas. Group adjacent layers with brackets: a, b, [c, d]\n")
+
+    order_input = typer.prompt("  Layer order", default=", ".join(layer_names))
+    layer_order = _parse_layer_order(order_input)
+
+    # Default colors
+    default_colors = [
+        "#4A90D9", "#50C878", "#E8A838", "#D94A4A", "#9B59B6",
+        "#1ABC9C", "#E74C3C", "#3498DB", "#F39C12", "#2ECC71",
+    ]
+
+    # Build config dict
+    config: dict = {"layers": {}}
+    for i, (name, dirs) in enumerate(layers.items()):
+        config["layers"][name] = {
+            "directories": dirs,
+            "color": default_colors[i % len(default_colors)],
+        }
+
+    config["layer_order"] = layer_order
+    config["rules"] = list(ALL_BUILTIN_RULES)
+
+    # Write config
+    config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False))
+    typer.echo(f"\nConfig written to {config_path}")
+    typer.echo("Run 'rubicon analyze .' to see your architecture.")
+
+
+def _parse_layer_order(raw: str) -> list[str | list[str]]:
+    """Parse a layer order string like 'a, b, [c, d]' into a list."""
+    result: list[str | list[str]] = []
+    raw = raw.strip()
+    i = 0
+    while i < len(raw):
+        if raw[i] == "[":
+            # Find matching bracket
+            end = raw.index("]", i)
+            group = [s.strip() for s in raw[i + 1:end].split(",") if s.strip()]
+            if group:
+                result.append(group)
+            i = end + 1
+        elif raw[i] == ",":
+            i += 1
+        elif raw[i].strip():
+            # Read until comma or bracket
+            end = i
+            while end < len(raw) and raw[end] not in ",[]":
+                end += 1
+            token = raw[i:end].strip()
+            if token:
+                result.append(token)
+            i = end
+        else:
+            i += 1
+    return result
 
 
 _SEVERITY_RANKS = {

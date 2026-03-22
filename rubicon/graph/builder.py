@@ -118,6 +118,14 @@ def _import_path_candidates(module: str) -> list[str]:
     path_base = module.replace(".", "/")
     candidates.extend(_path_variants(path_base))
 
+    # Try progressively stripping leading path segments.
+    # Java/Kotlin imports use full package paths (com/example/data/Repo)
+    # but the scan root may be deeper (data/Repo.kt).
+    parts = path_base.split("/")
+    for i in range(1, len(parts)):
+        sub = "/".join(parts[i:])
+        candidates.extend(_path_variants(sub))
+
     # Handle relative imports: "./foo" -> "foo"
     if module.startswith("./") or module.startswith("../"):
         clean = module.lstrip("./")

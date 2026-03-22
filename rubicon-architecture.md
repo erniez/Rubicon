@@ -436,7 +436,17 @@ sequenceDiagram
 
 **Deliverable:** Broad language support, CI-ready, and a polished daily-driver tool.
 
-### Phase 4 — LLM Intelligence (1 week)
+### Phase 4 — Monorepo / Subsystem Support
+- Nested `.rubicon` files: each subdirectory can define its own layers, layer order, and rules
+- Recursive discovery of `.rubicon` files during crawl
+- Scoped analysis: each config applies only to files under its directory
+- Per-subsystem violation reporting
+- Visualization with subsystem selector or combined view
+- Cross-subsystem dependency analysis (optional: flag imports between subsystems)
+
+**Deliverable:** First-class support for monorepos and multi-module projects where each subsystem has its own architecture.
+
+### Phase 5 — LLM Intelligence (1 week)
 - Abstract LLM provider interface (protocol class) with Claude as the default implementation, swappable for OpenAI, Ollama, etc.
 - LLM-based layer auto-classification via configurable provider
 - Incremental reclassification: only re-classify new or changed files on subsequent runs
