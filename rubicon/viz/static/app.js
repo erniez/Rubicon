@@ -357,39 +357,85 @@
         if (n === 0) return {};
 
         // Geological strata layout: horizontal bands stacked top to bottom.
-        // Top layer = closest to user (presentation), bottom = closest to data source.
+        // Grouped layers (from layer_order arrays) are placed side-by-side.
         // Right side reserved for edge corridors.
         var paddingX = 40;
         var paddingY = 30;
         var gap = 6;  // thin gap between strata
+        var colGap = 6; // gap between side-by-side layers in a group
         var edgeCorridor = 200; // space on right for curved edges
 
         var availWidth = width - paddingX - edgeCorridor;
-        var availHeight = height - 2 * paddingY - (n - 1) * gap;
 
-        // Height proportional to file count
+        // Build rows from config layer_order, grouping layers side-by-side
+        var layerOrder = (state.configData && state.configData.layer_order) || [];
+        var layerByName = {};
+        layers.forEach(function (l) { layerByName[l.name] = l; });
+
+        var rows = [];
+        var placed = {};
+
+        layerOrder.forEach(function (entry) {
+            if (Array.isArray(entry)) {
+                var row = [];
+                entry.forEach(function (name) {
+                    if (layerByName[name]) {
+                        row.push(layerByName[name]);
+                        placed[name] = true;
+                    }
+                });
+                if (row.length > 0) rows.push(row);
+            } else {
+                if (layerByName[entry]) {
+                    rows.push([layerByName[entry]]);
+                    placed[entry] = true;
+                }
+            }
+        });
+
+        // Append any layers not in layer_order
+        layers.forEach(function (l) {
+            if (!placed[l.name]) {
+                rows.push([l]);
+            }
+        });
+
+        var nRows = rows.length;
+        var availHeight = height - 2 * paddingY - Math.max(nRows - 1, 0) * gap;
+
+        // Height proportional to file count (use max file count in each row)
         var totalFiles = 0;
-        layers.forEach(function (l) { totalFiles += l.file_count; });
-        if (totalFiles === 0) totalFiles = n;
+        rows.forEach(function (row) {
+            var rowMax = 0;
+            row.forEach(function (l) { rowMax = Math.max(rowMax, l.file_count); });
+            totalFiles += rowMax || 1;
+        });
+        if (totalFiles === 0) totalFiles = nRows;
 
         var minH = 48;
         var positions = {};
         var y = paddingY;
 
-        layers.forEach(function (layer) {
-            var ratio = layer.file_count / totalFiles;
+        rows.forEach(function (row) {
+            var rowMax = 0;
+            row.forEach(function (l) { rowMax = Math.max(rowMax, l.file_count); });
+            var ratio = (rowMax || 1) / totalFiles;
             var h = Math.max(minH, availHeight * ratio);
-            var w = availWidth;
-            var x = paddingX;
+            var colCount = row.length;
+            var colWidth = (availWidth - colGap * (colCount - 1)) / colCount;
 
-            positions[layer.name] = {
-                x: x,
-                y: y,
-                w: w,
-                h: h,
-                cx: x + w / 2,
-                cy: y + h / 2
-            };
+            row.forEach(function (layer, colIdx) {
+                var x = paddingX + colIdx * (colWidth + colGap);
+
+                positions[layer.name] = {
+                    x: x,
+                    y: y,
+                    w: colWidth,
+                    h: h,
+                    cx: x + colWidth / 2,
+                    cy: y + h / 2
+                };
+            });
 
             y += h + gap;
         });
@@ -636,6 +682,14 @@
             layerDiff = buildLayerDiffSummary(state.diffData);
         }
 
+        // Find the rightmost block edge across all layers
+        var maxRightEdge = 0;
+        Object.keys(layout).forEach(function (key) {
+            var pos = layout[key];
+            var right = pos.x + pos.w;
+            if (right > maxRightEdge) maxRightEdge = right;
+        });
+
         edges.forEach(function (edge) {
             var sourcePos = layout[edge.source];
             var targetPos = layout[edge.target];
@@ -649,8 +703,8 @@
             var thickness = Math.max(1.5, Math.min(8, Math.log2(edge.count + 1) * 2));
             var opacity = Math.max(0.4, Math.min(0.9, 0.4 + edge.count * 0.05));
 
-            // Compute path between block edges
-            var pathData = computeEdgePath(sourcePos, targetPos);
+            // Compute path — all edges connect at the rightmost block edge
+            var pathData = computeEdgePath(sourcePos, targetPos, maxRightEdge);
 
             var path = group.append("path")
                 .attr("class", "layer-edge " + edgeClass)
@@ -795,21 +849,21 @@
     var edgeSlotIndex = 0;
     var edgeSlotTotal = 0;
 
-    function computeEdgePath(sourcePos, targetPos) {
-        // For geological strata, edges exit the right side and curve through
-        // a corridor on the right, connecting vertically between layers.
+    function computeEdgePath(sourcePos, targetPos, maxRightEdge) {
+        // All edges exit/enter at the rightmost block edge and curve
+        // through a corridor on the right. This prevents edges from
+        // crossing over sibling blocks in grouped rows.
         var rightMargin = 60;
         var slotWidth = 30;
 
-        // Source exits from right edge at vertical center
-        var srcX = sourcePos.x + sourcePos.w;
+        var srcX = maxRightEdge;
         var srcY = sourcePos.cy;
-        var tgtX = targetPos.x + targetPos.w;
+        var tgtX = maxRightEdge;
         var tgtY = targetPos.cy;
 
         // Spread multiple edges so they don't overlap
         var slot = edgeSlotIndex;
-        var corridorX = Math.max(srcX, tgtX) + rightMargin + slot * slotWidth;
+        var corridorX = maxRightEdge + rightMargin + slot * slotWidth;
         edgeSlotIndex++;
 
         var d = "M" + srcX + "," + srcY +
