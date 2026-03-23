@@ -66,10 +66,10 @@ def analyze(
         "--diff-against",
         help="Compare against a specific snapshot: index (1=oldest, -2=second latest), filename, or timestamp prefix.",
     ),
-    no_snapshot: bool = typer.Option(
+    snapshot: bool = typer.Option(
         False,
-        "--no-snapshot",
-        help="Skip saving a snapshot after analysis.",
+        "--snapshot",
+        help="Save a snapshot of the architecture for future diffs.",
     ),
     serve: bool = typer.Option(
         False,
@@ -120,7 +120,7 @@ def analyze(
             if previous is None:
                 available = list_snapshots(path)
                 if not available:
-                    typer.echo("No snapshots found.", err=True)
+                    typer.echo("No snapshots found. Use --snapshot to save one first.", err=True)
                 else:
                     typer.echo(f"Snapshot '{diff_against}' not found. Available snapshots:", err=True)
                     for i, snap_path in enumerate(available, 1):
@@ -128,15 +128,18 @@ def analyze(
                 raise typer.Exit(code=1)
         else:
             previous = load_latest_snapshot(path)
+            if previous is None:
+                typer.echo("No snapshots found. Use --snapshot to save one first.", err=True)
+                raise typer.Exit(code=1)
         commit_hash = get_commit_hash(path)
         current_snapshot = graph_to_snapshot(graph, violations, config, commit_hash)
         snapshot_diff = diff_snapshots(previous, current_snapshot)
 
-    # Snapshot: save unless suppressed
-    if not no_snapshot:
+    # Snapshot: save only when explicitly requested
+    if snapshot:
         commit_hash = get_commit_hash(path)
-        snapshot = graph_to_snapshot(graph, violations, config, commit_hash)
-        save_snapshot(path, snapshot)
+        snap = graph_to_snapshot(graph, violations, config, commit_hash)
+        save_snapshot(path, snap)
 
     if export:
         from rubicon.export import export_to_file
