@@ -4,7 +4,7 @@
 
 When AI agents write code, they move fast — but they don't always respect your architecture. Rubicon watches your codebase, enforces layer boundaries, and catches structural violations before they compound. Define your architecture once, and Rubicon makes sure every commit stays within the boundaries.
 
-Rubicon can take snapshots of your architecture. Use diff mode to see exactly what changed since the last snapshot — new dependencies added, violations introduced, violations resolved. It's like `git diff` for your architecture.
+Is your codebase already a hot mess? Rubicon can take snapshots of your architecture. Use diff mode to see what changed since the last snapshot — new dependencies, new violations, resolved violations. Track your cleanup progress over time.
 
 Supports 11 languages out of the box, with basic import detection for others.
 
