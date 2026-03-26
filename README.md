@@ -143,6 +143,33 @@ rubicon check . --fail-on info      # strict: fail on anything
 | `single_responsibility` | INFO | Files connecting to 4+ layers may have too many concerns |
 | `orphan_detection` | INFO | Files with no connections may be dead code |
 
+## Example projects
+
+The `examples/` directory contains sample projects you can analyze to see Rubicon in action.
+
+### `examples/ecommerce/`
+
+A multi-layer e-commerce app with five layers: presentation, domain (services + models), data, networking, and utilities. This project is intentionally messy — it has upward dependencies, layer skipping, orphaned files, and single-responsibility issues. A good example of what a real-world codebase looks like before cleanup:
+
+```bash
+rubicon analyze examples/ecommerce/ --serve
+```
+
+### `examples/todo_tracker/`
+
+A TODO list tracker that demonstrates how violations creep in during feature development. The project started clean — then a category feature was added with two architectural shortcuts:
+
+- **The data layer reaches up to the domain layer** — `data/category_store.py` imports `TodoService` from the services layer, violating `no_upward_dependency`
+- **The UI layer skips straight to the data layer** — `ui/app.py` imports `CategoryStore` directly instead of going through a service, violating `no_layer_skipping`
+
+Use snapshot + diff to see exactly what changed:
+
+```bash
+rubicon analyze examples/todo_tracker/ --snapshot   # baseline
+# ... make changes ...
+rubicon analyze examples/todo_tracker/ --diff       # see new violations
+```
+
 ## CI integration
 
 ```yaml
