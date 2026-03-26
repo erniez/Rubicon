@@ -11,3 +11,4 @@ venv/
 .pytest_cache/
 .rubicon_data/
 node_modules/
+package-lock.json
