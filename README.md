@@ -197,6 +197,10 @@ The interactive visualization has three levels:
 2. **File-level** — force-directed graph of files within or between layers
 3. **Ratsnest** — radial view of a single file and all its connections
 
+### Layer Strata
+
+![Layer Strata](Layer_strata.png)
+
 ## License
 
 MIT
