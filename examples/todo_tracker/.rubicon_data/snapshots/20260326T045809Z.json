@@ -1,0 +1,108 @@
+{
+  "timestamp": "2026-03-26T04:58:09.569919+00:00",
+  "commit_hash": "e8659e84dd3fef396a482eb0a24b79cac521c2ea",
+  "nodes": [
+    {
+      "id": "data/store.py",
+      "file_path": "data/store.py",
+      "language": "python",
+      "layer": "data",
+      "symbols": []
+    },
+    {
+      "id": "models/todo.py",
+      "file_path": "models/todo.py",
+      "language": "python",
+      "layer": "foundation",
+      "symbols": []
+    },
+    {
+      "id": "services/todo_service.py",
+      "file_path": "services/todo_service.py",
+      "language": "python",
+      "layer": "domain",
+      "symbols": []
+    },
+    {
+      "id": "ui/app.py",
+      "file_path": "ui/app.py",
+      "language": "python",
+      "layer": "presentation",
+      "symbols": []
+    }
+  ],
+  "edges": [
+    {
+      "source": "data/store.py",
+      "target": "models/todo.py",
+      "relationships": [
+        {
+          "source": "data/store.py",
+          "target": "models.todo",
+          "type": "import",
+          "source_file": "data/store.py",
+          "line_number": 1
+        }
+      ]
+    },
+    {
+      "source": "services/todo_service.py",
+      "target": "data/store.py",
+      "relationships": [
+        {
+          "source": "services/todo_service.py",
+          "target": "data.store",
+          "type": "import",
+          "source_file": "services/todo_service.py",
+          "line_number": 1
+        }
+      ]
+    },
+    {
+      "source": "services/todo_service.py",
+      "target": "models/todo.py",
+      "relationships": [
+        {
+          "source": "services/todo_service.py",
+          "target": "models.todo",
+          "type": "import",
+          "source_file": "services/todo_service.py",
+          "line_number": 2
+        }
+      ]
+    },
+    {
+      "source": "ui/app.py",
+      "target": "services/todo_service.py",
+      "relationships": [
+        {
+          "source": "ui/app.py",
+          "target": "services.todo_service",
+          "type": "import",
+          "source_file": "ui/app.py",
+          "line_number": 1
+        }
+      ]
+    },
+    {
+      "source": "ui/app.py",
+      "target": "models/todo.py",
+      "relationships": [
+        {
+          "source": "ui/app.py",
+          "target": "models.todo",
+          "type": "import",
+          "source_file": "ui/app.py",
+          "line_number": 2
+        }
+      ]
+    }
+  ],
+  "violations": [],
+  "layer_map": {
+    "data/store.py": "data",
+    "models/todo.py": "foundation",
+    "services/todo_service.py": "domain",
+    "ui/app.py": "presentation"
+  }
+}

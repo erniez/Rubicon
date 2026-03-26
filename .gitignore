@@ -10,5 +10,6 @@ venv/
 .mypy_cache/
 .pytest_cache/
 .rubicon_data/
+!examples/**/.rubicon_data/
 node_modules/
 package-lock.json
