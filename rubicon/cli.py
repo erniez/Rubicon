@@ -26,7 +26,61 @@ app = typer.Typer(
     name="rubicon",
     help="Language-agnostic code architecture visualization and design rule checking.",
     no_args_is_help=True,
+    invoke_without_command=True,
 )
+
+
+@app.callback()
+def main(
+    ctx: typer.Context,
+    help: bool = typer.Option(False, "--help", "-h", is_eager=True, help="Show this message and exit."),
+) -> None:
+    """Language-agnostic code architecture visualization and design rule checking."""
+    if help or ctx.invoked_subcommand is None:
+        from rich.console import Console
+        from rich.text import Text
+
+        console = Console()
+        console.print()
+        console.print("[bold]Usage:[/bold] rubicon [bold cyan]<command>[/bold cyan] [dim]\\[options] <path>[/dim]")
+        console.print()
+        console.print(Text("Language-agnostic code architecture visualization and design rule checking.", style="dim"))
+        console.print()
+
+        console.print("[bold]Commands:[/bold]")
+        console.print()
+
+        console.print("  [bold cyan]rubicon init[/bold cyan] [dim]\\[path][/dim]")
+        console.print("    Interactive setup — scans for source files, prompts for layer")
+        console.print("    assignments, generates .rubicon.")
+        console.print()
+
+        console.print("  [bold cyan]rubicon analyze[/bold cyan] [dim]<path>[/dim]")
+        console.print("    Analyze architecture and report violations.")
+        console.print()
+        console.print("    [bold]Output[/bold]")
+        console.print("      --format [dim]<fmt>[/dim]          Output format: terminal (default) or mermaid")
+        console.print("      --output [dim]<file>[/dim]         Write to file instead of stdout")
+        console.print("    [bold]Visualization[/bold]")
+        console.print("      --serve                 Open interactive diagram in browser")
+        console.print("      --port [dim]<int>[/dim]            Server port (default: 8742)")
+        console.print("      --export                Export diagram as SVG")
+        console.print("    [bold]Snapshots & Diff[/bold]")
+        console.print("      --snapshot              Save a snapshot for future diffs")
+        console.print("      --diff                  Compare against last snapshot")
+        console.print("      --diff-against [dim]<ref>[/dim]    Compare against a specific snapshot")
+        console.print("    [bold]Debug[/bold]")
+        console.print("      --crawl-only            List discovered files only")
+        console.print("      --graph-only            Print graph summary, skip rules")
+        console.print()
+
+        console.print("  [bold cyan]rubicon check[/bold cyan] [dim]<path>[/dim]")
+        console.print("    CI-friendly mode — compact output, non-zero exit on violations.")
+        console.print()
+        console.print("      --fail-on [dim]<severity>[/dim]    Minimum severity to fail: error, warning (default), info")
+        console.print()
+
+        raise typer.Exit()
 
 
 @app.command()
@@ -41,50 +95,60 @@ def analyze(
     format: str = typer.Option(
         "terminal",
         help="Output format: terminal, mermaid.",
+        rich_help_panel="Output",
     ),
     output: Path | None = typer.Option(
         None,
         help="Write output to file instead of stdout.",
+        rich_help_panel="Output",
     ),
     crawl_only: bool = typer.Option(
         False,
         "--crawl-only",
         help="Only crawl and list discovered files, skip parsing and analysis.",
+        rich_help_panel="Debug",
     ),
     graph_only: bool = typer.Option(
         False,
         "--graph-only",
         help="Crawl and parse, print graph summary, skip rule checking.",
+        rich_help_panel="Debug",
     ),
     diff: bool = typer.Option(
         False,
         "--diff",
         help="Compare against the last snapshot and show changes.",
+        rich_help_panel="Snapshots & Diff",
     ),
     diff_against: str | None = typer.Option(
         None,
         "--diff-against",
         help="Compare against a specific snapshot: index (1=oldest, -2=second latest), filename, or timestamp prefix.",
+        rich_help_panel="Snapshots & Diff",
     ),
     snapshot: bool = typer.Option(
         False,
         "--snapshot",
         help="Save a snapshot of the architecture for future diffs.",
+        rich_help_panel="Snapshots & Diff",
     ),
     serve: bool = typer.Option(
         False,
         "--serve",
         help="Start the visualization server and open the browser.",
+        rich_help_panel="Visualization",
     ),
     port: int = typer.Option(
         8742,
         "--port",
         help="Port for the visualization server.",
+        rich_help_panel="Visualization",
     ),
     export: bool = typer.Option(
         False,
         "--export",
         help="Export architecture diagram as SVG.",
+        rich_help_panel="Visualization",
     ),
 ) -> None:
     """Analyze a project's architecture."""
@@ -226,7 +290,10 @@ def check(
     info_count = sum(1 for v in violations if v.severity == Severity.INFO)
     typer.echo(f"\nrubicon: {error_count} errors, {warning_count} warnings, {info_count} info")
 
-    raise typer.Exit(code=1 if failing else 0)
+    exit_code = 1 if failing else 0
+    typer.echo(f"exit {exit_code}")
+
+    raise typer.Exit(code=exit_code)
 
 
 @app.command()

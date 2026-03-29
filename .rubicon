@@ -27,7 +27,16 @@ layers:
     directories:
       - rubicon/reporter.py
       - rubicon/mermaid.py
+      - rubicon/export.py
     color: "#F39C12"
+  snapshot:
+    directories:
+      - rubicon/snapshot/
+    color: "#E74C3C"
+  viz:
+    directories:
+      - rubicon/viz/
+    color: "#3498DB"
   models:
     directories:
       - rubicon/models.py
@@ -35,7 +44,7 @@ layers:
 
 layer_order:
   - cli
-  - output
+  - [output, snapshot, viz]
   - rules
   - graph
   - parser

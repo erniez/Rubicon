@@ -7,6 +7,18 @@ name = "rubicon"
 version = "0.1.0"
 description = "Language-agnostic code architecture visualization and design rule checking"
 requires-python = ">=3.11"
+authors = [{name = "Ernie Zappacosta"}]
+license = {text = "MIT"}
+keywords = ["architecture", "linting", "tree-sitter", "visualization", "code-quality"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "typer>=0.9",
     "networkx>=3.0",
@@ -35,6 +47,11 @@ dev = [
     "mypy>=1.0",
     "httpx>=0.24",
 ]
+[project.urls]
+Homepage = "https://github.com/erniez/Rubicon"
+Repository = "https://github.com/erniez/Rubicon"
+Issues = "https://github.com/erniez/Rubicon/issues"
+
 [project.scripts]
 rubicon = "rubicon.cli:app"
 

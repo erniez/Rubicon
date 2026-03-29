@@ -93,19 +93,43 @@ Interactive setup. Scans for source files, prompts for layer assignments, genera
 
 Analyze architecture and report violations.
 
+**Output**
+
 | Flag | Description |
 |------|-------------|
-| `--serve` | Open interactive visualization in browser |
+| `--format <fmt>` | Output format: `terminal` (default) or `mermaid` |
+| `--output <file>` | Write output to file instead of stdout |
+
+**Visualization**
+
+| Flag | Description |
+|------|-------------|
+| `--serve` | Start the visualization server and open the browser |
+| `--port <int>` | Port for the visualization server (default: 8742) |
 | `--export` | Export architecture diagram as SVG |
-| `--format mermaid` | Output Mermaid diagram text |
-| `--snapshot` | Save a snapshot for future diffs |
-| `--diff` | Compare against last snapshot, show changes |
-| `--diff-against <ref>` | Compare against a specific snapshot |
-| `--output <file>` | Write output to file |
+
+**Snapshots & Diff**
+
+| Flag | Description |
+|------|-------------|
+| `--snapshot` | Save a snapshot of the architecture for future diffs |
+| `--diff` | Compare against the last snapshot and show changes |
+| `--diff-against <ref>` | Compare against a specific snapshot by index, filename, or timestamp prefix |
+
+**Debug**
+
+| Flag | Description |
+|------|-------------|
+| `--crawl-only` | Only crawl and list discovered files, skip parsing and analysis |
+| `--graph-only` | Crawl and parse, print graph summary, skip rule checking |
 
 ### `rubicon check <path>`
 
 CI-friendly mode. Compact output, no snapshots, non-zero exit on violations.
+
+| Flag | Description |
+|------|-------------|
+| `--fail-on <severity>` | Minimum severity to fail: `error`, `warning` (default), `info` |
 
 ```bash
 rubicon check . --fail-on warning   # default
@@ -142,6 +166,83 @@ rubicon check . --fail-on info      # strict: fail on anything
 | `dependency_inversion` | INFO | Cross-layer inheritance should target abstractions |
 | `single_responsibility` | INFO | Files connecting to 4+ layers may have too many concerns |
 | `orphan_detection` | INFO | Files with no connections may be dead code |
+
+## `.rubicon` examples
+
+A simple 3-layer app:
+
+```yaml
+layers:
+  presentation:
+    directories:
+      - ui/
+  domain:
+    directories:
+      - services/
+  data:
+    directories:
+      - data/
+
+layer_order:
+  - presentation
+  - domain
+  - data
+```
+
+With a foundation layer that any layer can import from (skipping allowed):
+
+```yaml
+layers:
+  presentation:
+    directories:
+      - ui/
+  domain:
+    directories:
+      - services/
+  data:
+    directories:
+      - data/
+  foundation:
+    directories:
+      - models/
+
+layer_order:
+  - presentation
+  - domain
+  - data
+  - foundation
+
+foundation_layers:
+  - foundation
+```
+
+Grouped layers sit at the same level in the hierarchy:
+
+```yaml
+layers:
+  presentation:
+    directories:
+      - ui/
+  domain:
+    directories:
+      - services/
+      - models/
+  data:
+    directories:
+      - data/
+  networking:
+    directories:
+      - api/
+  utilities:
+    directories:
+      - utils/
+
+layer_order:
+  - presentation
+  - domain
+  - data
+  - [networking, utilities]   # same level — can reference each other
+```
 
 ## Example projects
 
