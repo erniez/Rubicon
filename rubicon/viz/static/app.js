@@ -458,13 +458,13 @@
             defs.append("marker")
                 .attr("id", "arrow-" + t.name)
                 .attr("viewBox", "0 0 10 10")
-                .attr("refX", 10)
+                .attr("refX", 0)
                 .attr("refY", 5)
                 .attr("markerWidth", 8)
                 .attr("markerHeight", 8)
                 .attr("orient", "auto")
                 .append("path")
-                .attr("d", "M0,0 L10,5 L0,10 Z")
+                .attr("d", "M10,0 L0,5 L10,10 Z")
                 .attr("fill", t.color);
         });
     }
@@ -532,17 +532,18 @@
                 .attr("fill-opacity", 0.8);
 
             // Layer name — left-aligned
+            var displayName = layer.display_name || layer.name;
             g.append("text")
                 .attr("class", "layer-name stratum-name")
                 .attr("x", 20)
                 .attr("y", pos.h / 2 + 1)
                 .attr("dominant-baseline", "middle")
-                .text(layer.name);
+                .text(displayName);
 
             // File count — right of name
             g.append("text")
                 .attr("class", "layer-count")
-                .attr("x", 20 + layer.name.length * 10 + 16)
+                .attr("x", 20 + displayName.length * 10 + 16)
                 .attr("y", pos.h / 2 + 1)
                 .attr("dominant-baseline", "middle")
                 .text(layer.file_count + (layer.file_count === 1 ? " file" : " files"));
@@ -703,8 +704,10 @@
             var thickness = Math.max(1.5, Math.min(8, Math.log2(edge.count + 1) * 2));
             var opacity = Math.max(0.4, Math.min(0.9, 0.4 + edge.count * 0.05));
 
-            // Compute path — all edges connect at the rightmost block edge
-            var pathData = computeEdgePath(sourcePos, targetPos, maxRightEdge);
+            // Compute path — draw from target (dependency) to source (importer)
+            // so that marker-end arrowhead points at the source (upper layer),
+            // showing the "depends on" direction flowing downward.
+            var pathData = computeEdgePath(targetPos, sourcePos, maxRightEdge);
 
             var path = group.append("path")
                 .attr("class", "layer-edge " + edgeClass)
@@ -714,7 +717,7 @@
                 .attr("stroke-width", thickness)
                 .attr("opacity", opacity)
                 .attr(NORMAL_OPACITY_ATTR, opacity)
-                .attr("marker-end", "url(#arrow-" + edgeClass + ")")
+                .attr("marker-start", "url(#arrow-" + edgeClass + ")")
                 .on("click", function () {
                     navigateToFiles(null, edge.source, edge.target);
                 })

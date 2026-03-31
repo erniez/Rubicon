@@ -216,6 +216,29 @@ foundation_layers:
   - foundation
 ```
 
+With an orchestrator layer that can import from any layer (the inverse of foundation):
+
+```yaml
+layers:
+  app:
+    directories:
+      - app/
+  domain:
+    directories:
+      - services/
+  data:
+    directories:
+      - data/
+
+layer_order:
+  - app
+  - domain
+  - data
+
+orchestrator_layers:
+  - app
+```
+
 Grouped layers sit at the same level in the hierarchy:
 
 ```yaml

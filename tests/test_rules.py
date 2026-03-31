@@ -156,6 +156,34 @@ class TestNoLayerSkipping:
         violations = no_layer_skipping(graph, _make_config())
         assert len(violations) == 1
 
+    def test_orchestrator_layer_exempt(self) -> None:
+        """Orchestrator layers can import from any layer without triggering skip violations."""
+        config = RubiconConfig(
+            layers={},
+            layer_order=["cli", "output", "rules", "graph"],
+            orchestrator_layers=["cli"],
+        )
+        graph = _make_graph(
+            {"cli/main.py": "cli", "graph/builder.py": "graph"},
+            [("cli/main.py", "graph/builder.py", [_rel(RelationshipType.IMPORT)])],
+        )
+        violations = no_layer_skipping(graph, config)
+        assert len(violations) == 0
+
+    def test_non_orchestrator_still_violates(self) -> None:
+        """Non-orchestrator layers still get skip violations even when orchestrator_layers is set."""
+        config = RubiconConfig(
+            layers={},
+            layer_order=["cli", "output", "rules", "graph"],
+            orchestrator_layers=["cli"],
+        )
+        graph = _make_graph(
+            {"output/reporter.py": "output", "graph/builder.py": "graph"},
+            [("output/reporter.py", "graph/builder.py", [_rel(RelationshipType.IMPORT)])],
+        )
+        violations = no_layer_skipping(graph, config)
+        assert len(violations) == 1
+
 
 # ── inheritance_flows_downward ────────────────────────────────────
 

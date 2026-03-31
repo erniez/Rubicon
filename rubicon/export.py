@@ -142,7 +142,7 @@ def export_svg(
             )
 
             label_y = current_y + row_h / 2
-            name_upper = layer.replace("_", " ").upper()
+            name_upper = _display_name(layer, config)
             _add_text(
                 svg, band_x + 16, label_y,
                 name_upper,
@@ -239,6 +239,16 @@ def _compute_band_heights(
         height = _BAND_MIN_HEIGHT + ratio * (_BAND_MAX_HEIGHT - _BAND_MIN_HEIGHT)
         heights[layer] = height
     return heights
+
+
+def _display_name(layer: str, config: RubiconConfig) -> str:
+    """Return a layer name with a role suffix for display."""
+    name = layer.replace("_", " ").upper()
+    if layer in config.foundation_layers:
+        return f"{name} (foundation)"
+    if layer in config.orchestrator_layers:
+        return f"{name} (orchestrator)"
+    return name
 
 
 def _get_layer_color(config: RubiconConfig, layer: str) -> str:
@@ -404,15 +414,17 @@ def _draw_edges(
         x_offset = edge_x_base + idx * 20
         x_offset = min(x_offset, canvas_width - 30)
 
-        # Curved path using quadratic bezier
+        # Curved path — draw from target (dependency) to source (importer)
+        # so the arrowhead at marker-end points at the source (upper layer),
+        # visually showing dependencies flowing downward.
         mid_y = (start_y + end_y) / 2
         control_x = x_offset + 30
 
         d = (
-            f"M {edge_x_base - 10:.1f},{start_y:.1f} "
-            f"L {x_offset:.1f},{start_y:.1f} "
-            f"Q {control_x:.1f},{mid_y:.1f} {x_offset:.1f},{end_y:.1f} "
-            f"L {edge_x_base - 10:.1f},{end_y:.1f}"
+            f"M {edge_x_base - 10:.1f},{end_y:.1f} "
+            f"L {x_offset:.1f},{end_y:.1f} "
+            f"Q {control_x:.1f},{mid_y:.1f} {x_offset:.1f},{start_y:.1f} "
+            f"L {edge_x_base - 10:.1f},{start_y:.1f}"
         )
         _add_path(svg, d, stroke=color, stroke_width=1.5, marker_end=marker_id)
 

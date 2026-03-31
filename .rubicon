@@ -55,6 +55,9 @@ layer_order:
 foundation_layers:
   - models
 
+orchestrator_layers:
+  - cli
+
 rules:
   - no_upward_dependency
   - no_layer_skipping

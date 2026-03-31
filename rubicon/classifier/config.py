@@ -64,6 +64,11 @@ def _parse_config(raw: dict) -> RubiconConfig:
     if isinstance(raw_foundation, list):
         config.foundation_layers = [str(item) for item in raw_foundation]
 
+    # Parse orchestrator_layers
+    raw_orchestrator = raw.get("orchestrator_layers", [])
+    if isinstance(raw_orchestrator, list):
+        config.orchestrator_layers = [str(item) for item in raw_orchestrator]
+
     # Parse rules (if specified, use only those; otherwise keep all defaults)
     raw_rules = raw.get("rules")
     if isinstance(raw_rules, list):

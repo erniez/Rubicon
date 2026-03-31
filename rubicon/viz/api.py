@@ -49,6 +49,7 @@ def layer_summary(
     layers_list = [
         {
             "name": layer,
+            "display_name": _display_name(layer, config),
             "file_count": layer_files.get(layer, 0),
             "color": layer_colors.get(layer, "#999999"),
         }
@@ -353,6 +354,15 @@ def _default_color(name: str) -> str:
     """Return a deterministic default color for a layer name."""
     idx = hash(name) % len(_DEFAULT_COLORS)
     return _DEFAULT_COLORS[idx]
+
+
+def _display_name(layer: str, config: RubiconConfig) -> str:
+    """Return a layer name with a role suffix if it's a foundation or orchestrator layer."""
+    if layer in config.foundation_layers:
+        return f"{layer} (foundation)"
+    if layer in config.orchestrator_layers:
+        return f"{layer} (orchestrator)"
+    return layer
 
 
 def _serialize_nodes(graph: nx.DiGraph, node_ids: set[str]) -> list[dict]:

@@ -61,6 +61,8 @@ def no_layer_skipping(
             continue
         if target_layer in config.foundation_layers:
             continue
+        if source_layer in config.orchestrator_layers:
+            continue
 
         distance = abs(source_idx - target_idx)
         if distance > 1:

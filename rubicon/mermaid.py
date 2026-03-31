@@ -52,7 +52,7 @@ def generate_mermaid(
             lines.append(f"        direction LR")
         for layer in row:
             count = layer_files.get(layer, 0)
-            name_upper = layer.replace("_", " ").upper()
+            name_upper = _display_name(layer, config)
             file_label = f"{count} file{'s' if count != 1 else ''}"
             pad = "\u2003" * 4
             node_id = _sanitize_id(layer)
@@ -178,3 +178,13 @@ def _sanitize_id(name: str) -> str:
     if node_id.lower() in {r.lower() for r in _RESERVED}:
         node_id = f"layer_{node_id}"
     return node_id
+
+
+def _display_name(layer: str, config: RubiconConfig) -> str:
+    """Return a layer name with a role suffix for display."""
+    name = layer.replace("_", " ").upper()
+    if layer in config.foundation_layers:
+        return f"{name} (foundation)"
+    if layer in config.orchestrator_layers:
+        return f"{name} (orchestrator)"
+    return name

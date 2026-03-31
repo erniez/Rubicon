@@ -153,6 +153,7 @@ class RubiconConfig:
     layers: dict[str, LayerConfig] = field(default_factory=dict)
     layer_order: list[str | list[str]] = field(default_factory=list)
     foundation_layers: list[str] = field(default_factory=list)
+    orchestrator_layers: list[str] = field(default_factory=list)
     rules: list[str] = field(default_factory=lambda: list(ALL_BUILTIN_RULES))
     custom_rules: list[CustomRuleConfig] = field(default_factory=list)
 
