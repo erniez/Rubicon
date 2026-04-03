@@ -103,3 +103,30 @@ class TestScan:
             assert False, "Should have raised FrozenInstanceError"
         except AttributeError:
             pass
+
+    def test_ignore_patterns_exclude_files(self) -> None:
+        all_files = scan(FIXTURES)
+        filtered_files = scan(FIXTURES, ignore=["src/app.py"])
+        all_paths = {str(f.path) for f in all_files}
+        filtered_paths = {str(f.path) for f in filtered_files}
+        assert "src/app.py" in all_paths
+        assert "src/app.py" not in filtered_paths
+
+    def test_ignore_patterns_directory(self) -> None:
+        all_files = scan(FIXTURES)
+        filtered_files = scan(FIXTURES, ignore=["src/"])
+        assert len(all_files) == 5
+        assert len(filtered_files) == 0
+
+    def test_ignore_patterns_glob(self) -> None:
+        all_files = scan(FIXTURES)
+        filtered_files = scan(FIXTURES, ignore=["*.py"])
+        all_paths = {str(f.path) for f in all_files}
+        filtered_paths = {str(f.path) for f in filtered_files}
+        assert "src/app.py" in all_paths
+        assert not any(p.endswith(".py") for p in filtered_paths)
+
+    def test_ignore_empty_list_changes_nothing(self) -> None:
+        normal = scan(FIXTURES)
+        with_empty = scan(FIXTURES, ignore=[])
+        assert len(normal) == len(with_empty)

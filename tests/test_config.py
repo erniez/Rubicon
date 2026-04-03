@@ -103,6 +103,20 @@ class TestCustomRulesConfig:
         assert config.custom_rules == []
 
 
+class TestIgnoreConfig:
+    def test_ignore_defaults_to_empty(self) -> None:
+        config = load_config(SAMPLE)
+        assert config.ignore == []
+
+    def test_ignore_parsed_from_config(self) -> None:
+        config = load_config(FIXTURES / "ignore_project")
+        assert config.ignore == ["tests/", "docs/", "*.generated.py"]
+
+    def test_missing_config_ignore_empty(self) -> None:
+        config = load_config(Path("/nonexistent/path"))
+        assert config.ignore == []
+
+
 class TestMalformedConfig:
     def test_malformed_yaml_returns_defaults(self) -> None:
         config = load_config(MALFORMED)

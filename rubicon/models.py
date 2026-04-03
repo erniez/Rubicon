@@ -156,6 +156,7 @@ class RubiconConfig:
     orchestrator_layers: list[str] = field(default_factory=list)
     rules: list[str] = field(default_factory=lambda: list(ALL_BUILTIN_RULES))
     custom_rules: list[CustomRuleConfig] = field(default_factory=list)
+    ignore: list[str] = field(default_factory=list)
 
     @property
     def layer_map(self) -> dict[str, list[str]]:

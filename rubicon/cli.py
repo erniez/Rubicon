@@ -153,7 +153,8 @@ def analyze(
 ) -> None:
     """Analyze a project's architecture."""
     typer.echo(f"Analyzing: {path}")
-    files = scan(path)
+    config = load_config(path)
+    files = scan(path, ignore=config.ignore)
 
     if crawl_only:
         for f in files:
@@ -167,7 +168,6 @@ def analyze(
         typer.echo(graph_summary(graph))
         raise typer.Exit()
 
-    config = load_config(path)
     if not config.layers and not (path / ".rubicon").is_file():
         typer.echo("No .rubicon config found. Run 'rubicon init' to get started.", err=True)
         raise typer.Exit(code=1)
@@ -257,9 +257,9 @@ def check(
     Produces compact output, saves no snapshots, and returns exit code 1
     if any violations at or above --fail-on severity are found.
     """
-    files = scan(path)
-    graph = build_graph(files)
     config = load_config(path)
+    files = scan(path, ignore=config.ignore)
+    graph = build_graph(files)
     if not config.layers and not (path / ".rubicon").is_file():
         typer.echo("No .rubicon config found. Run 'rubicon init' to get started.", err=True)
         raise typer.Exit(code=1)

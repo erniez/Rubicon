@@ -32,14 +32,18 @@ def detect_language(path: Path) -> str | None:
     return EXTENSION_MAP.get(path.suffix.lower())
 
 
-def scan(root: Path) -> list[SourceFile]:
+def scan(root: Path, ignore: list[str] | None = None) -> list[SourceFile]:
     """Walk the directory tree and return all recognized source files.
 
-    Respects .gitignore and default excludes. Skips binary and
-    unrecognized files.
+    Respects .gitignore, default excludes, and extra ignore patterns.
+    Skips binary and unrecognized files.
+
+    Args:
+        root: Project root directory.
+        ignore: Additional gitignore-style patterns from .rubicon config.
     """
     root = root.resolve()
-    spec = load_gitignore(root)
+    spec = load_gitignore(root, extra_patterns=ignore)
     results: list[SourceFile] = []
 
     for file_path in sorted(root.rglob("*")):

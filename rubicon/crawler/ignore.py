@@ -22,8 +22,13 @@ DEFAULT_EXCLUDES: list[str] = [
 ]
 
 
-def load_gitignore(root: Path) -> PathSpec:
-    """Load .gitignore patterns from the project root."""
+def load_gitignore(root: Path, extra_patterns: list[str] | None = None) -> PathSpec:
+    """Load .gitignore patterns from the project root.
+
+    Args:
+        root: Project root directory.
+        extra_patterns: Additional gitignore-style patterns (e.g. from .rubicon ignore config).
+    """
     gitignore_path = root / ".gitignore"
     patterns = list(DEFAULT_EXCLUDES)
     if gitignore_path.is_file():
@@ -32,4 +37,6 @@ def load_gitignore(root: Path) -> PathSpec:
             for line in gitignore_path.read_text().splitlines()
             if line.strip() and not line.strip().startswith("#")
         )
+    if extra_patterns:
+        patterns.extend(extra_patterns)
     return PathSpec.from_lines("gitignore", patterns)

@@ -58,6 +58,11 @@ foundation_layers:
 orchestrator_layers:
   - cli
 
+ignore:
+  - tests/
+  - examples/
+  - rubicon/__init__.py
+
 rules:
   - no_upward_dependency
   - no_layer_skipping

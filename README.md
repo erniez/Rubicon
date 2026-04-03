@@ -52,6 +52,11 @@ layers:
       - data/
     color: "#E8A838"
 
+ignore:
+  - tests/
+  - examples/
+  - "*.generated.py"
+
 layer_order:
   - presentation
   - domain
@@ -82,6 +87,21 @@ custom_rules:
       - django.db
     message: "Domain layer must not import database packages"
 ```
+
+### Ignoring files
+
+The `ignore` field excludes files from the crawl entirely — they won't appear as nodes, won't trigger rules, and won't show up in the visualization.
+
+```yaml
+ignore:
+  - tests/              # entire directory
+  - examples/
+  - "*.generated.py"    # glob pattern
+  - docs/**/*.md        # nested glob
+  - !tests/conftest.py  # negation — include this file even though tests/ is ignored
+```
+
+Patterns in `ignore` are applied on top of Rubicon's built-in excludes (`.git`, `node_modules`, `__pycache__`, etc.).
 
 ## CLI commands
 

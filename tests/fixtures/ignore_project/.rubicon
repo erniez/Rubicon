@@ -1,0 +1,15 @@
+layers:
+  app:
+    directories:
+      - src/
+
+layer_order:
+  - app
+
+ignore:
+  - tests/
+  - docs/
+  - "*.generated.py"
+
+rules:
+  - no_upward_dependency

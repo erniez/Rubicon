@@ -89,4 +89,9 @@ def _parse_config(raw: dict) -> RubiconConfig:
                     severity=str(entry.get("severity", "warning")),
                 ))
 
+    # Parse ignore patterns (gitignore-style)
+    raw_ignore = raw.get("ignore", [])
+    if isinstance(raw_ignore, list):
+        config.ignore = [str(p) for p in raw_ignore]
+
     return config
