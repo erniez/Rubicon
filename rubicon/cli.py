@@ -24,7 +24,7 @@ from rubicon.snapshot.store import (
 
 app = typer.Typer(
     name="rubicon",
-    help="Language-agnostic code architecture visualization and design rule checking.",
+    help="Deterministic structural integrity validation and architecture visualization for any codebase.",
     no_args_is_help=True,
     invoke_without_command=True,
 )
@@ -35,7 +35,7 @@ def main(
     ctx: typer.Context,
     help: bool = typer.Option(False, "--help", "-h", is_eager=True, help="Show this message and exit."),
 ) -> None:
-    """Language-agnostic code architecture visualization and design rule checking."""
+    """Deterministic structural integrity validation and architecture visualization for any codebase."""
     if help or ctx.invoked_subcommand is None:
         from rich.console import Console
         from rich.text import Text
@@ -44,7 +44,7 @@ def main(
         console.print()
         console.print("[bold]Usage:[/bold] rubicon [bold cyan]<command>[/bold cyan] [dim]\\[options] <path>[/dim]")
         console.print()
-        console.print(Text("Language-agnostic code architecture visualization and design rule checking.", style="dim"))
+        console.print(Text("Deterministic structural integrity validation and architecture visualization for any codebase.", style="dim"))
         console.print()
 
         console.print("[bold]Commands:[/bold]")

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rubicon"
 version = "0.1.0"
-description = "Language-agnostic code architecture visualization and design rule checking"
+description = "Deterministic structural integrity validation and architecture visualization for any codebase"
 requires-python = ">=3.11"
 authors = [{name = "Ernie Zappacosta"}]
 license = {text = "MIT"}
