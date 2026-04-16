@@ -236,6 +236,128 @@ def get_allowed_imports(
     )
 
 
+def check_batch(
+    changes: list[dict],
+    config: RubiconConfig,
+    root: Path,
+    full: bool = False,
+) -> BatchPreflightResult:
+    """Validate multiple proposed changes at once.
+
+    Runs check_fast() on each change independently first. If full=True, also
+    loads the graph once and adds ALL proposed edges simultaneously before
+    running cycle detection — this catches cycles that only appear when multiple
+    changes are combined.
+
+    Each change dict must have "from" and "to" keys; "type" is optional
+    (defaults to "import").
+
+    Args:
+        changes: List of {"from": str, "to": str, "type": str} dicts.
+        config: Loaded .rubicon configuration.
+        root: Project root.
+        full: Whether to run cycle detection on the combined change set.
+
+    Returns:
+        BatchPreflightResult with per-change results and top-level all_allowed.
+    """
+    # Fast-path check each change independently
+    results: list[PreflightResult] = []
+    for change in changes:
+        src = change.get("from", "")
+        tgt = change.get("to", "")
+        rtype = change.get("type", "import")
+        results.append(check_fast(src, tgt, rtype, config, root))
+
+    if full and changes:
+        graph = _load_or_build_graph(config, root)
+        augmented = graph.copy()
+
+        # Map each change index to its resolved node IDs
+        change_nodes: list[tuple[str | None, str | None]] = []
+        for change in changes:
+            src = change.get("from", "")
+            tgt = change.get("to", "")
+            rtype = change.get("type", "import")
+            resolved_tgt, _ = resolve_import_target(tgt, root, config)
+            src_node = src if src in augmented else None
+            tgt_node = resolved_tgt if resolved_tgt and resolved_tgt in augmented else None
+            change_nodes.append((src_node, tgt_node))
+
+            if src_node and tgt_node:
+                stub_rel = Relationship(
+                    source=src_node, target=tgt_node,
+                    type=RelationshipType.IMPORT if rtype == "import" else RelationshipType.INHERITANCE,
+                    source_file=Path(src_node), line_number=0,
+                )
+                if augmented.has_edge(src_node, tgt_node):
+                    augmented[src_node][tgt_node]["relationships"].append(stub_rel)
+                else:
+                    augmented.add_edge(src_node, tgt_node, relationships=[stub_rel])
+
+        # Check for new cycles on the fully-augmented graph
+        new_cycle_violations = detect_cycles(
+            augmented, RelationshipType.IMPORT,
+            "no_circular_imports", Severity.WARNING, "Circular import",
+        )
+        existing_cycle_violations = detect_cycles(
+            graph, RelationshipType.IMPORT,
+            "no_circular_imports", Severity.WARNING, "Circular import",
+        )
+        existing_messages = {v.message for v in existing_cycle_violations}
+        truly_new = [v for v in new_cycle_violations if v.message not in existing_messages]
+
+        # Attach new cycle violations to the first change whose nodes appear in the cycle
+        for cycle_v in truly_new:
+            attached = False
+            for i, (src_node, tgt_node) in enumerate(change_nodes):
+                if src_node and (
+                    src_node in cycle_v.message or
+                    (tgt_node and tgt_node in cycle_v.message)
+                ):
+                    pf_violation = PreflightViolation(
+                        rule=cycle_v.rule,
+                        severity=cycle_v.severity.value,
+                        message=cycle_v.message,
+                    )
+                    old = results[i]
+                    results[i] = PreflightResult(
+                        allowed=False,
+                        source=old.source,
+                        source_layer=old.source_layer,
+                        target=old.target,
+                        target_layer=old.target_layer,
+                        relationship_type=old.relationship_type,
+                        violations=old.violations + (pf_violation,),
+                        cycle_detection_run=True,
+                    )
+                    attached = True
+                    break
+            if not attached and results:
+                # Attach to last change as fallback
+                pf_violation = PreflightViolation(
+                    rule=cycle_v.rule,
+                    severity=cycle_v.severity.value,
+                    message=cycle_v.message,
+                )
+                old = results[-1]
+                results[-1] = PreflightResult(
+                    allowed=False,
+                    source=old.source,
+                    source_layer=old.source_layer,
+                    target=old.target,
+                    target_layer=old.target_layer,
+                    relationship_type=old.relationship_type,
+                    violations=old.violations + (pf_violation,),
+                    cycle_detection_run=True,
+                )
+
+    return BatchPreflightResult(
+        all_allowed=all(r.allowed for r in results),
+        results=tuple(results),
+    )
+
+
 def _load_or_build_graph(config: RubiconConfig, root: Path) -> nx.DiGraph:
     """Return the dependency graph, loading from cache when valid."""
     from rubicon.crawler.scanner import scan
