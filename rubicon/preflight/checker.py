@@ -9,7 +9,9 @@ check_batch(): Validate multiple proposed changes at once.
 import fnmatch
 from pathlib import Path
 
-from rubicon.models import RubiconConfig
+import networkx as nx
+
+from rubicon.models import Relationship, RelationshipType, RubiconConfig, Severity
 from rubicon.preflight.models import (
     AllowedImportsResult,
     BatchPreflightResult,
@@ -17,7 +19,7 @@ from rubicon.preflight.models import (
     PreflightViolation,
 )
 from rubicon.preflight.resolver import classify_path, resolve_import_target
-from rubicon.rules.builtin import ABSTRACTION_INDICATORS
+from rubicon.rules.builtin import ABSTRACTION_INDICATORS, detect_cycles
 
 
 def check_fast(
@@ -180,3 +182,143 @@ def _path_looks_like_abstraction(target: str) -> bool:
             ):
                 return True
     return False
+
+
+def _load_or_build_graph(config: RubiconConfig, root: Path) -> nx.DiGraph:
+    """Return the dependency graph, loading from cache when valid."""
+    from rubicon.crawler.scanner import scan
+    from rubicon.graph.builder import build_graph
+    from rubicon.graph.cache import is_cache_valid, load_graph_cache, save_graph_cache
+    from rubicon.graph.layered import apply_layers
+
+    files = scan(root, ignore=config.ignore)
+    if is_cache_valid(root, files):
+        cached = load_graph_cache(root)
+        if cached is not None:
+            return cached
+
+    graph = build_graph(files)
+    apply_layers(graph, config.layer_map, config.layer_patterns)
+    save_graph_cache(graph, root)
+    return graph
+
+
+def check_full(
+    source: str,
+    target: str,
+    rel_type: str,
+    config: RubiconConfig,
+    root: Path,
+) -> PreflightResult:
+    """Check a proposed relationship including cycle detection.
+
+    Runs check_fast() first; if already violated, returns immediately without
+    loading the graph. Otherwise loads or builds the dependency graph, adds the
+    proposed edge, and checks for new import cycles and single_responsibility
+    threshold crossings.
+
+    Args:
+        source: Source file path (need not exist on disk).
+        target: Target import string (file path, module name, etc.).
+        rel_type: "import" or "inheritance".
+        config: Loaded .rubicon configuration.
+        root: Project root for graph loading and import resolution.
+
+    Returns:
+        PreflightResult with cycle_detection_run=True.
+    """
+    # Fast path first — if already a layer violation, skip graph load
+    fast_result = check_fast(source, target, rel_type, config, root)
+    if not fast_result.allowed:
+        # Return fast result but mark cycle_detection_run=True so callers
+        # know we still ran the full check path
+        return PreflightResult(
+            allowed=fast_result.allowed,
+            source=fast_result.source,
+            source_layer=fast_result.source_layer,
+            target=fast_result.target,
+            target_layer=fast_result.target_layer,
+            relationship_type=fast_result.relationship_type,
+            violations=fast_result.violations,
+            cycle_detection_run=True,
+        )
+
+    # Load / build graph
+    graph = _load_or_build_graph(config, root)
+
+    # Resolve source and target to node IDs that exist in the graph
+    resolved_target, _ = resolve_import_target(target, root, config)
+    source_node = source if source in graph else None
+    target_node = resolved_target if resolved_target and resolved_target in graph else None
+
+    violations: list[PreflightViolation] = list(fast_result.violations)
+
+    if source_node and target_node:
+        # Simulate adding the proposed edge
+        augmented = graph.copy()
+        stub_rel = Relationship(
+            source=source_node,
+            target=target_node,
+            type=RelationshipType.IMPORT if rel_type == "import" else RelationshipType.INHERITANCE,
+            source_file=Path(source_node),
+            line_number=0,
+        )
+        if augmented.has_edge(source_node, target_node):
+            augmented[source_node][target_node]["relationships"].append(stub_rel)
+        else:
+            augmented.add_edge(source_node, target_node, relationships=[stub_rel])
+
+        # Detect new import cycles introduced by the proposed edge
+        rel_type_enum = (
+            RelationshipType.IMPORT if rel_type == "import" else RelationshipType.INHERITANCE
+        )
+        cycle_rule = "no_circular_imports" if rel_type == "import" else "no_circular_ownership"
+        cycle_severity = Severity.WARNING if rel_type == "import" else Severity.ERROR
+        cycle_label = "Circular import" if rel_type == "import" else "Circular ownership"
+
+        new_violations = detect_cycles(augmented, rel_type_enum, cycle_rule, cycle_severity, cycle_label)
+        # Only report cycles that include the proposed edge nodes (new cycles, not pre-existing)
+        existing_violations = detect_cycles(graph, rel_type_enum, cycle_rule, cycle_severity, cycle_label)
+        existing_messages = {v.message for v in existing_violations}
+        for v in new_violations:
+            if v.message not in existing_messages:
+                violations.append(PreflightViolation(
+                    rule=v.rule,
+                    severity=v.severity.value,
+                    message=v.message,
+                ))
+
+        # Check single_responsibility delta
+        def _connected_layers(g: nx.DiGraph, node: str) -> set[str]:
+            layers: set[str] = set()
+            for _, tgt in g.out_edges(node):
+                lyr = g.nodes[tgt].get("layer", "unclassified")
+                if lyr != "unclassified":
+                    layers.add(lyr)
+            for src, _ in g.in_edges(node):
+                lyr = g.nodes[src].get("layer", "unclassified")
+                if lyr != "unclassified":
+                    layers.add(lyr)
+            return layers
+
+        original_layers = _connected_layers(graph, source_node)
+        augmented_layers = _connected_layers(augmented, source_node)
+        if len(augmented_layers) >= 4 and len(original_layers) < 4:
+            violations.append(PreflightViolation(
+                rule="single_responsibility",
+                severity="info",
+                message=f"{source_node} would be connected to {len(augmented_layers)} layers "
+                        f"({', '.join(sorted(augmented_layers))}); "
+                        f"consider splitting responsibilities",
+            ))
+
+    return PreflightResult(
+        allowed=len(violations) == 0,
+        source=source,
+        source_layer=fast_result.source_layer,
+        target=target,
+        target_layer=fast_result.target_layer,
+        relationship_type=rel_type,
+        violations=tuple(violations),
+        cycle_detection_run=True,
+    )

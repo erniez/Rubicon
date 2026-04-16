@@ -3,9 +3,10 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from rubicon.models import CustomRuleConfig, LayerConfig, RubiconConfig
-from rubicon.preflight.checker import check_fast
+from rubicon.preflight.checker import check_fast, check_full
 from rubicon.preflight.models import PreflightResult
 
 
@@ -130,3 +131,122 @@ class TestCheckFast:
         assert result.allowed is False
         assert result.target_layer is None
         assert any("unclassifiable" in v.message.lower() for v in result.violations)
+
+
+# ── helpers for full-path tests ───────────────────────────────────────────────
+
+
+def _write_project(tmp_path: Path, config_yaml: str, files: dict[str, str]) -> None:
+    """Write a minimal project with .rubicon config and source files."""
+    (tmp_path / ".rubicon").write_text(config_yaml)
+    for rel_path, content in files.items():
+        full = tmp_path / rel_path
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(content)
+
+
+_THREE_LAYER_CONFIG = """\
+layers:
+  presentation:
+    directories: [ui/]
+  services:
+    directories: [services/]
+  domain:
+    directories: [domain/]
+layer_order: [presentation, services, domain]
+rules: [no_circular_imports]
+"""
+
+
+# ── TestCheckFull ─────────────────────────────────────────────────────────────
+
+
+class TestCheckFull:
+    def test_cycle_detection_run_is_true(self, tmp_path: Path) -> None:
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "services/order.py": "",
+            "domain/model.py": "",
+        })
+        result = check_full("services/order.py", "domain/model.py", "import",
+                            _make_config(), tmp_path)
+        assert result.cycle_detection_run is True
+
+    def test_no_cycle_is_allowed(self, tmp_path: Path) -> None:
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "services/order.py": "from domain import model",
+            "domain/model.py": "",
+        })
+        result = check_full("services/order.py", "domain/model.py", "import",
+                            _make_config(), tmp_path)
+        assert result.allowed is True
+        cycle_violations = [v for v in result.violations if "circular" in v.rule]
+        assert len(cycle_violations) == 0
+
+    def test_new_cycle_is_violation(self, tmp_path: Path) -> None:
+        # domain/model.py already imports services/order.py (creating a cycle if we
+        # also add services/order.py → domain/model.py)
+        # Use dotted import so parser resolves to services/order.py
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "services/order.py": "",
+            "domain/model.py": "from services.order import Something",
+        })
+        result = check_full("services/order.py", "domain/model.py", "import",
+                            _make_config(), tmp_path)
+        assert result.allowed is False
+        cycle_violations = [v for v in result.violations if "circular" in v.rule]
+        assert len(cycle_violations) > 0
+
+    def test_preexisting_cycle_not_reported(self, tmp_path: Path) -> None:
+        # Both files already import each other — existing cycle
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "services/order.py": "from domain.model import Something",
+            "domain/model.py": "from services.order import Something",
+        })
+        # Proposing a third edge in the cycle should not double-report
+        result = check_full("services/order.py", "domain/model.py", "import",
+                            _make_config(), tmp_path)
+        # Fast path may still flag layer violations; we care that cycle isn't double-reported
+        cycle_violations = [v for v in result.violations if "circular" in v.rule]
+        # Should be 0 new cycle violations (cycle already exists before the proposed edge)
+        assert len(cycle_violations) == 0
+
+    def test_cold_path_builds_and_caches_graph(self, tmp_path: Path) -> None:
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "services/order.py": "",
+            "domain/model.py": "",
+        })
+        cache_file = tmp_path / ".rubicon_data" / "graph_cache.json"
+        assert not cache_file.exists()
+
+        check_full("services/order.py", "domain/model.py", "import",
+                   _make_config(), tmp_path)
+
+        assert cache_file.is_file()
+
+    def test_warm_path_uses_cache(self, tmp_path: Path) -> None:
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "services/order.py": "",
+            "domain/model.py": "",
+        })
+        # Prime the cache
+        check_full("services/order.py", "domain/model.py", "import",
+                   _make_config(), tmp_path)
+        cache_mtime = (tmp_path / ".rubicon_data" / "graph_cache.json").stat().st_mtime
+
+        # Second call — cache should be reused (mtime unchanged)
+        check_full("services/order.py", "domain/model.py", "import",
+                   _make_config(), tmp_path)
+        assert (tmp_path / ".rubicon_data" / "graph_cache.json").stat().st_mtime == cache_mtime
+
+    def test_fast_path_violation_skips_graph_load(self, tmp_path: Path) -> None:
+        # Upward dependency is caught fast; result should still have cycle_detection_run=True
+        _write_project(tmp_path, _THREE_LAYER_CONFIG, {
+            "domain/model.py": "",
+            "ui/screen.py": "",
+        })
+        result = check_full("domain/model.py", "ui/screen.py", "import",
+                            _make_config(), tmp_path)
+        assert result.allowed is False
+        assert result.cycle_detection_run is True
+        rules = [v.rule for v in result.violations]
+        assert "no_upward_dependency" in rules
