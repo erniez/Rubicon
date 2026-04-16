@@ -21,7 +21,7 @@ def extract_relationships(
     tree: object, source_file: Path, content: bytes
 ) -> list[Relationship]:
     """Extract imports, inheritance, and ownership from a Kotlin file."""
-    root = tree.root_node  # type: ignore[union-attr]
+    root = tree.root_node  # type: ignore[attr-defined]
     relationships: list[Relationship] = []
 
     _extract_imports(root, source_file, relationships)

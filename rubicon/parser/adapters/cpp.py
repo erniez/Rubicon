@@ -26,7 +26,7 @@ def extract_relationships(
     tree: object, source_file: Path, content: bytes
 ) -> list[Relationship]:
     """Extract includes, inheritance, and ownership from a C++ file."""
-    root = tree.root_node  # type: ignore[union-attr]
+    root = tree.root_node  # type: ignore[attr-defined]
     relationships: list[Relationship] = []
 
     _extract_includes(root, source_file, relationships)

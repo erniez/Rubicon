@@ -1,5 +1,6 @@
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import typer
 import yaml
@@ -366,7 +367,7 @@ def init(
     ]
 
     # Build config dict
-    config: dict = {"layers": {}}
+    config: dict[str, Any] = {"layers": {}}
     for i, (name, dirs) in enumerate(layers.items()):
         config["layers"][name] = {
             "directories": dirs,
