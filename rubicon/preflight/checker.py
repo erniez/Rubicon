@@ -170,18 +170,69 @@ def _path_looks_like_abstraction(target: str) -> bool:
     the graph-based _looks_like_abstraction (which also checks symbol names),
     but works without loading the graph.
     """
-    # Normalise path separators and split into parts
     parts = target.replace("\\", "/").replace(".", "/").split("/")
     for part in parts:
         if part in ABSTRACTION_INDICATORS:
             return True
         for indicator in ABSTRACTION_INDICATORS:
             if len(part) > len(indicator) and (
-                part.lower().startswith(indicator.lower())
-                or part.lower().endswith(indicator.lower())
+                part.startswith(indicator) or part.endswith(indicator)
             ):
                 return True
     return False
+
+
+def _connected_layers(g: nx.DiGraph, node: str) -> set[str]:
+    """Return the set of distinct layers connected to a node (in or out edges)."""
+    layers: set[str] = set()
+    for _, tgt in g.out_edges(node):
+        lyr = g.nodes[tgt].get("layer", "unclassified")
+        if lyr != "unclassified":
+            layers.add(lyr)
+    for src, _ in g.in_edges(node):
+        lyr = g.nodes[src].get("layer", "unclassified")
+        if lyr != "unclassified":
+            layers.add(lyr)
+    return layers
+
+
+def _add_stub_edge(
+    graph: nx.DiGraph,
+    src_node: str,
+    tgt_node: str,
+    rel_type: str,
+) -> None:
+    """Add a proposed (stub) relationship edge to a graph copy."""
+    stub_rel = Relationship(
+        source=src_node,
+        target=tgt_node,
+        type=RelationshipType.IMPORT if rel_type == "import" else RelationshipType.INHERITANCE,
+        source_file=Path(src_node),
+        line_number=0,
+    )
+    if graph.has_edge(src_node, tgt_node):
+        graph[src_node][tgt_node]["relationships"].append(stub_rel)
+    else:
+        graph.add_edge(src_node, tgt_node, relationships=[stub_rel])
+
+
+def _filter_new_cycles(
+    augmented: nx.DiGraph,
+    baseline: nx.DiGraph,
+    rel_type_enum: RelationshipType,
+    rule: str,
+    severity: Severity,
+    label: str,
+) -> list[PreflightViolation]:
+    """Return cycle violations present in augmented but not in baseline."""
+    new_violations = detect_cycles(augmented, rel_type_enum, rule, severity, label)
+    existing_violations = detect_cycles(baseline, rel_type_enum, rule, severity, label)
+    existing_messages = {v.message for v in existing_violations}
+    return [
+        PreflightViolation(rule=v.rule, severity=v.severity.value, message=v.message)
+        for v in new_violations
+        if v.message not in existing_messages
+    ]
 
 
 def get_allowed_imports(
@@ -261,65 +312,44 @@ def check_batch(
     Returns:
         BatchPreflightResult with per-change results and top-level all_allowed.
     """
-    # Fast-path check each change independently
-    results: list[PreflightResult] = []
-    for change in changes:
-        src = change.get("from", "")
-        tgt = change.get("to", "")
-        rtype = change.get("type", "import")
-        results.append(check_fast(src, tgt, rtype, config, root))
+    # Extract fields once; reuse in both the fast loop and the graph loop
+    extracted = [
+        (c.get("from", ""), c.get("to", ""), c.get("type", "import"))
+        for c in changes
+    ]
+
+    results: list[PreflightResult] = [
+        check_fast(src, tgt, rtype, config, root)
+        for src, tgt, rtype in extracted
+    ]
 
     if full and changes:
         graph = _load_or_build_graph(config, root)
         augmented = graph.copy()
 
-        # Map each change index to its resolved node IDs
         change_nodes: list[tuple[str | None, str | None]] = []
-        for change in changes:
-            src = change.get("from", "")
-            tgt = change.get("to", "")
-            rtype = change.get("type", "import")
+        for src, tgt, rtype in extracted:
             resolved_tgt, _ = resolve_import_target(tgt, root, config)
             src_node = src if src in augmented else None
             tgt_node = resolved_tgt if resolved_tgt and resolved_tgt in augmented else None
             change_nodes.append((src_node, tgt_node))
 
             if src_node and tgt_node:
-                stub_rel = Relationship(
-                    source=src_node, target=tgt_node,
-                    type=RelationshipType.IMPORT if rtype == "import" else RelationshipType.INHERITANCE,
-                    source_file=Path(src_node), line_number=0,
-                )
-                if augmented.has_edge(src_node, tgt_node):
-                    augmented[src_node][tgt_node]["relationships"].append(stub_rel)
-                else:
-                    augmented.add_edge(src_node, tgt_node, relationships=[stub_rel])
+                _add_stub_edge(augmented, src_node, tgt_node, rtype)
 
-        # Check for new cycles on the fully-augmented graph
-        new_cycle_violations = detect_cycles(
-            augmented, RelationshipType.IMPORT,
-            "no_circular_imports", Severity.WARNING, "Circular import",
+        truly_new = _filter_new_cycles(
+            augmented, graph,
+            RelationshipType.IMPORT, "no_circular_imports", Severity.WARNING, "Circular import",
         )
-        existing_cycle_violations = detect_cycles(
-            graph, RelationshipType.IMPORT,
-            "no_circular_imports", Severity.WARNING, "Circular import",
-        )
-        existing_messages = {v.message for v in existing_cycle_violations}
-        truly_new = [v for v in new_cycle_violations if v.message not in existing_messages]
 
         # Attach new cycle violations to the first change whose nodes appear in the cycle
         for cycle_v in truly_new:
             attached = False
             for i, (src_node, tgt_node) in enumerate(change_nodes):
                 if src_node and (
-                    src_node in cycle_v.message or
-                    (tgt_node and tgt_node in cycle_v.message)
+                    src_node in cycle_v.message
+                    or (tgt_node and tgt_node in cycle_v.message)
                 ):
-                    pf_violation = PreflightViolation(
-                        rule=cycle_v.rule,
-                        severity=cycle_v.severity.value,
-                        message=cycle_v.message,
-                    )
                     old = results[i]
                     results[i] = PreflightResult(
                         allowed=False,
@@ -328,18 +358,12 @@ def check_batch(
                         target=old.target,
                         target_layer=old.target_layer,
                         relationship_type=old.relationship_type,
-                        violations=old.violations + (pf_violation,),
+                        violations=old.violations + (cycle_v,),
                         cycle_detection_run=True,
                     )
                     attached = True
                     break
             if not attached and results:
-                # Attach to last change as fallback
-                pf_violation = PreflightViolation(
-                    rule=cycle_v.rule,
-                    severity=cycle_v.severity.value,
-                    message=cycle_v.message,
-                )
                 old = results[-1]
                 results[-1] = PreflightResult(
                     allowed=False,
@@ -348,7 +372,7 @@ def check_batch(
                     target=old.target,
                     target_layer=old.target_layer,
                     relationship_type=old.relationship_type,
-                    violations=old.violations + (pf_violation,),
+                    violations=old.violations + (cycle_v,),
                     cycle_detection_run=True,
                 )
 
@@ -399,23 +423,11 @@ def check_full(
         root: Project root for graph loading and import resolution.
 
     Returns:
-        PreflightResult with cycle_detection_run=True.
+        PreflightResult with cycle_detection_run=True only when the graph was loaded.
     """
-    # Fast path first — if already a layer violation, skip graph load
     fast_result = check_fast(source, target, rel_type, config, root)
     if not fast_result.allowed:
-        # Return fast result but mark cycle_detection_run=True so callers
-        # know we still ran the full check path
-        return PreflightResult(
-            allowed=fast_result.allowed,
-            source=fast_result.source,
-            source_layer=fast_result.source_layer,
-            target=fast_result.target,
-            target_layer=fast_result.target_layer,
-            relationship_type=fast_result.relationship_type,
-            violations=fast_result.violations,
-            cycle_detection_run=True,
-        )
+        return fast_result
 
     # Load / build graph
     graph = _load_or_build_graph(config, root)
@@ -428,21 +440,9 @@ def check_full(
     violations: list[PreflightViolation] = list(fast_result.violations)
 
     if source_node and target_node:
-        # Simulate adding the proposed edge
         augmented = graph.copy()
-        stub_rel = Relationship(
-            source=source_node,
-            target=target_node,
-            type=RelationshipType.IMPORT if rel_type == "import" else RelationshipType.INHERITANCE,
-            source_file=Path(source_node),
-            line_number=0,
-        )
-        if augmented.has_edge(source_node, target_node):
-            augmented[source_node][target_node]["relationships"].append(stub_rel)
-        else:
-            augmented.add_edge(source_node, target_node, relationships=[stub_rel])
+        _add_stub_edge(augmented, source_node, target_node, rel_type)
 
-        # Detect new import cycles introduced by the proposed edge
         rel_type_enum = (
             RelationshipType.IMPORT if rel_type == "import" else RelationshipType.INHERITANCE
         )
@@ -450,30 +450,9 @@ def check_full(
         cycle_severity = Severity.WARNING if rel_type == "import" else Severity.ERROR
         cycle_label = "Circular import" if rel_type == "import" else "Circular ownership"
 
-        new_violations = detect_cycles(augmented, rel_type_enum, cycle_rule, cycle_severity, cycle_label)
-        # Only report cycles that include the proposed edge nodes (new cycles, not pre-existing)
-        existing_violations = detect_cycles(graph, rel_type_enum, cycle_rule, cycle_severity, cycle_label)
-        existing_messages = {v.message for v in existing_violations}
-        for v in new_violations:
-            if v.message not in existing_messages:
-                violations.append(PreflightViolation(
-                    rule=v.rule,
-                    severity=v.severity.value,
-                    message=v.message,
-                ))
-
-        # Check single_responsibility delta
-        def _connected_layers(g: nx.DiGraph, node: str) -> set[str]:
-            layers: set[str] = set()
-            for _, tgt in g.out_edges(node):
-                lyr = g.nodes[tgt].get("layer", "unclassified")
-                if lyr != "unclassified":
-                    layers.add(lyr)
-            for src, _ in g.in_edges(node):
-                lyr = g.nodes[src].get("layer", "unclassified")
-                if lyr != "unclassified":
-                    layers.add(lyr)
-            return layers
+        violations.extend(_filter_new_cycles(
+            augmented, graph, rel_type_enum, cycle_rule, cycle_severity, cycle_label,
+        ))
 
         original_layers = _connected_layers(graph, source_node)
         augmented_layers = _connected_layers(augmented, source_node)

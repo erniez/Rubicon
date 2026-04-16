@@ -1,6 +1,5 @@
 """Data models for pre-flight import validation results."""
 
-import json
 from dataclasses import dataclass
 
 

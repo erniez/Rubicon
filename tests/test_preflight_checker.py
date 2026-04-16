@@ -239,7 +239,7 @@ class TestCheckFull:
         assert (tmp_path / ".rubicon_data" / "graph_cache.json").stat().st_mtime == cache_mtime
 
     def test_fast_path_violation_skips_graph_load(self, tmp_path: Path) -> None:
-        # Upward dependency is caught fast; result should still have cycle_detection_run=True
+        # Upward dependency is caught fast; cycle detection is not run so cycle_detection_run=False
         _write_project(tmp_path, _THREE_LAYER_CONFIG, {
             "domain/model.py": "",
             "ui/screen.py": "",
@@ -247,6 +247,6 @@ class TestCheckFull:
         result = check_full("domain/model.py", "ui/screen.py", "import",
                             _make_config(), tmp_path)
         assert result.allowed is False
-        assert result.cycle_detection_run is True
+        assert result.cycle_detection_run is False
         rules = [v.rule for v in result.violations]
         assert "no_upward_dependency" in rules

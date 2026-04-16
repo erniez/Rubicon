@@ -112,9 +112,10 @@ def is_cache_valid(root: Path, files: list[SourceFile]) -> bool:
 
     fingerprint: dict[str, float] = payload.get("fingerprint", {})
 
+    current_paths = {str(f.path) for f in files}
+
     # Check for added or modified files
-    current_paths = {str(f.path): f.path for f in files}
-    for path_str, file_path in current_paths.items():
+    for path_str in current_paths:
         cached_mtime = fingerprint.get(path_str)
         if cached_mtime is None:
             return False  # new file not in cache
@@ -125,7 +126,7 @@ def is_cache_valid(root: Path, files: list[SourceFile]) -> bool:
             return False
 
     # Check for removed files
-    if set(fingerprint.keys()) != set(current_paths.keys()):
+    if set(fingerprint.keys()) != current_paths:
         return False
 
     return True
