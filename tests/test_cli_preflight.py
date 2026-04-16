@@ -269,9 +269,9 @@ class TestPreflightBatch:
         (tmp_path / "domain").mkdir()
         (tmp_path / "domain" / "model.py").write_text("")
 
-        # services→domain AND domain→services: individually they'd each be caught
-        # by layer rules, but with --full the cycle is also detected
-        # Use a simpler test: no pre-existing edges, proposing a back-and-forth
+        # Config only enables no_circular_imports — no layer-order rules.
+        # Individually neither edge violates no_circular_imports (no cycle exists yet),
+        # so without --full both are allowed.
         batch = json.dumps([
             {"from": "services/order.py", "to": "domain/model.py", "type": "import"},
             {"from": "domain/model.py", "to": "services/order.py", "type": "import"},
@@ -279,15 +279,15 @@ class TestPreflightBatch:
         batch_file = tmp_path / "changes.json"
         batch_file.write_text(batch)
 
-        # Without --full: the second change triggers no_upward_dependency
+        # Without --full: no_circular_imports is a graph rule, can't be detected fast
         code_fast, data_fast = _invoke([
             "preflight", str(tmp_path),
             "--from", "services/order.py",
             "--batch", str(batch_file),
         ])
-        assert code_fast == 1  # upward dep violation on second change
+        assert code_fast == 0  # no fast-path violations (only no_circular_imports enabled)
 
-        # With --full: cycle is detected in addition
+        # With --full: both edges are added simultaneously — cycle is detected
         code_full, data_full = _invoke([
             "preflight", str(tmp_path),
             "--from", "services/order.py",

@@ -32,8 +32,10 @@ def check_fast(
     """Check a proposed relationship using layer indices only.
 
     Does not build or load the dependency graph, so cycle detection is skipped.
-    Covers: no_upward_dependency, no_layer_skipping, inheritance_flows_downward,
-    dependency_inversion (path heuristic only), and custom forbidden_imports.
+    Only rules listed in config.rules are evaluated, matching the behaviour of
+    rubicon check/analyze. Covers: no_upward_dependency, no_layer_skipping,
+    inheritance_flows_downward, dependency_inversion (path heuristic only),
+    and custom forbidden_imports.
 
     Args:
         source: Source file path (need not exist on disk).
@@ -91,7 +93,11 @@ def check_fast(
     # If either layer isn't in layer_order, skip structural checks
     if source_idx is not None and target_idx is not None:
         # no_upward_dependency: lower layers cannot import higher layers
-        if rel_type == "import" and source_idx > target_idx:
+        if (
+            "no_upward_dependency" in config.rules
+            and rel_type == "import"
+            and source_idx > target_idx
+        ):
             violations.append(PreflightViolation(
                 rule="no_upward_dependency",
                 severity="warning",
@@ -101,7 +107,8 @@ def check_fast(
 
         # no_layer_skipping: cannot skip intermediate layers
         if (
-            source_layer != target_layer
+            "no_layer_skipping" in config.rules
+            and source_layer != target_layer
             and abs(source_idx - target_idx) > 1
             and target_layer not in config.foundation_layers
             and source_layer not in config.orchestrator_layers
@@ -114,7 +121,11 @@ def check_fast(
             ))
 
         # inheritance_flows_downward: A inherits B → A must be same level or below B
-        if rel_type == "inheritance" and source_idx < target_idx:
+        if (
+            "inheritance_flows_downward" in config.rules
+            and rel_type == "inheritance"
+            and source_idx < target_idx
+        ):
             violations.append(PreflightViolation(
                 rule="inheritance_flows_downward",
                 severity="error",
@@ -125,7 +136,8 @@ def check_fast(
         # dependency_inversion: cross-layer inheritance to a concrete-looking target
         # Path-only heuristic; symbol-level detection requires a full graph.
         if (
-            rel_type == "inheritance"
+            "dependency_inversion" in config.rules
+            and rel_type == "inheritance"
             and source_layer != target_layer
             and not _path_looks_like_abstraction(target)
         ):
@@ -235,6 +247,16 @@ def _filter_new_cycles(
     ]
 
 
+def _ensure_node(
+    graph: nx.DiGraph,
+    node_id: str,
+    layer: str | None,
+) -> None:
+    """Add node to the graph if absent, with layer metadata."""
+    if node_id not in graph:
+        graph.add_node(node_id, layer=layer or "unclassified", symbols=[])
+
+
 def get_allowed_imports(
     source: str,
     config: RubiconConfig,
@@ -296,9 +318,10 @@ def check_batch(
     """Validate multiple proposed changes at once.
 
     Runs check_fast() on each change independently first. If full=True, also
-    loads the graph once and adds ALL proposed edges simultaneously before
+    loads the graph once and adds ALL proposed import edges simultaneously before
     running cycle detection — this catches cycles that only appear when multiple
-    changes are combined.
+    changes are combined. Cycle detection only applies to import-type changes;
+    inheritance-type changes are still checked by check_fast layer rules.
 
     Each change dict must have "from" and "to" keys; "type" is optional
     (defaults to "import").
@@ -323,19 +346,29 @@ def check_batch(
         for src, tgt, rtype in extracted
     ]
 
-    if full and changes:
+    if full and changes and "no_circular_imports" in config.rules:
         graph = _load_or_build_graph(config, root)
         augmented = graph.copy()
 
         change_nodes: list[tuple[str | None, str | None]] = []
         for src, tgt, rtype in extracted:
-            resolved_tgt, _ = resolve_import_target(tgt, root, config)
-            src_node = src if src in augmented else None
-            tgt_node = resolved_tgt if resolved_tgt and resolved_tgt in augmented else None
-            change_nodes.append((src_node, tgt_node))
+            resolved_tgt, tgt_layer = resolve_import_target(tgt, root, config)
+            src_layer = classify_path(src, config)
 
-            if src_node and tgt_node:
-                _add_stub_edge(augmented, src_node, tgt_node, rtype)
+            # Add stub nodes for files not yet in the graph
+            _ensure_node(augmented, src, src_layer)
+            tgt_node_id = resolved_tgt or tgt
+            if tgt_layer is not None:
+                _ensure_node(augmented, tgt_node_id, tgt_layer)
+                tgt_node: str | None = tgt_node_id
+            else:
+                tgt_node = None
+
+            change_nodes.append((src, tgt_node))
+
+            # Only add import edges to the augmented graph for cycle detection
+            if tgt_node and rtype == "import":
+                _add_stub_edge(augmented, src, tgt_node, rtype)
 
         truly_new = _filter_new_cycles(
             augmented, graph,
@@ -412,8 +445,10 @@ def check_full(
 
     Runs check_fast() first; if already violated, returns immediately without
     loading the graph. Otherwise loads or builds the dependency graph, adds the
-    proposed edge, and checks for new import cycles and single_responsibility
-    threshold crossings.
+    proposed edge (inserting stub nodes for files not yet in the graph), and
+    checks for new import cycles and single_responsibility threshold crossings.
+    Cycle detection only applies when rel_type is "import" and the
+    no_circular_imports rule is enabled.
 
     Args:
         source: Source file path (need not exist on disk).
@@ -431,39 +466,42 @@ def check_full(
 
     # Load / build graph
     graph = _load_or_build_graph(config, root)
+    augmented = graph.copy()
 
-    # Resolve source and target to node IDs that exist in the graph
+    # Resolve target; add stub nodes for files not yet in the graph
     resolved_target, _ = resolve_import_target(target, root, config)
-    source_node = source if source in graph else None
-    target_node = resolved_target if resolved_target and resolved_target in graph else None
+    _ensure_node(augmented, source, fast_result.source_layer)
+    target_node_id = resolved_target or target
+    if fast_result.target_layer is not None:
+        _ensure_node(augmented, target_node_id, fast_result.target_layer)
+        target_node: str | None = target_node_id
+    else:
+        target_node = None
 
     violations: list[PreflightViolation] = list(fast_result.violations)
 
-    if source_node and target_node:
-        augmented = graph.copy()
-        _add_stub_edge(augmented, source_node, target_node, rel_type)
+    if target_node:
+        _add_stub_edge(augmented, source, target_node, rel_type)
 
-        rel_type_enum = (
-            RelationshipType.IMPORT if rel_type == "import" else RelationshipType.INHERITANCE
-        )
-        cycle_rule = "no_circular_imports" if rel_type == "import" else "no_circular_ownership"
-        cycle_severity = Severity.WARNING if rel_type == "import" else Severity.ERROR
-        cycle_label = "Circular import" if rel_type == "import" else "Circular ownership"
-
-        violations.extend(_filter_new_cycles(
-            augmented, graph, rel_type_enum, cycle_rule, cycle_severity, cycle_label,
-        ))
-
-        original_layers = _connected_layers(graph, source_node)
-        augmented_layers = _connected_layers(augmented, source_node)
-        if len(augmented_layers) >= 4 and len(original_layers) < 4:
-            violations.append(PreflightViolation(
-                rule="single_responsibility",
-                severity="info",
-                message=f"{source_node} would be connected to {len(augmented_layers)} layers "
-                        f"({', '.join(sorted(augmented_layers))}); "
-                        f"consider splitting responsibilities",
+        # Cycle detection only for import edges; no_circular_ownership uses
+        # RelationshipType.OWNERSHIP (not INHERITANCE) so skip it here.
+        if rel_type == "import" and "no_circular_imports" in config.rules:
+            violations.extend(_filter_new_cycles(
+                augmented, graph,
+                RelationshipType.IMPORT, "no_circular_imports", Severity.WARNING, "Circular import",
             ))
+
+        if "single_responsibility" in config.rules:
+            original_layers = _connected_layers(graph, source) if source in graph else set()
+            augmented_layers = _connected_layers(augmented, source)
+            if len(augmented_layers) >= 4 and len(original_layers) < 4:
+                violations.append(PreflightViolation(
+                    rule="single_responsibility",
+                    severity="info",
+                    message=f"{source} would be connected to {len(augmented_layers)} layers "
+                            f"({', '.join(sorted(augmented_layers))}); "
+                            f"consider splitting responsibilities",
+                ))
 
     return PreflightResult(
         allowed=len(violations) == 0,

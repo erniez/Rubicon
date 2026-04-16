@@ -413,7 +413,7 @@ def preflight(
     from_file: str = typer.Option(
         ..., "--from", "-f", help="Source file path (relative to project root)."
     ),
-    to_import: str = typer.Option(
+    to_import: str | None = typer.Option(
         None, "--to", "-t", help="Target import string (file path or module name)."
     ),
     rel_type: str = typer.Option(
@@ -422,10 +422,10 @@ def preflight(
     full: bool = typer.Option(
         False, "--full", help="Enable cycle detection (loads or builds the dependency graph)."
     ),
-    what_can_import: str = typer.Option(
+    what_can_import: str | None = typer.Option(
         None, "--what-can-import", help="Query which layers this file may import from."
     ),
-    batch: str = typer.Option(
+    batch: str | None = typer.Option(
         None, "--batch", help="Path to a JSON file of changes, or '-' to read from stdin."
     ),
 ) -> None:
@@ -434,29 +434,29 @@ def preflight(
     Check whether a proposed import or inheritance relationship is allowed
     by the architectural rules defined in .rubicon, before writing any code.
 
-    Exit codes: 0=allowed, 1=violation, 2=unclassifiable/input error, 3=config not found.
+    Always outputs JSON. Exit codes: 0=allowed, 1=violation, 2=input error, 3=config not found.
     """
     import json
     import sys
 
     from rubicon.preflight.checker import check_fast, check_full
 
+    def _error(code: str, message: str, exit_code: int) -> None:
+        typer.echo(json.dumps({"error": code, "message": message}, indent=2))
+        raise typer.Exit(code=exit_code)
+
     # Validate mutually exclusive modes
     modes = [m for m in [to_import, what_can_import, batch] if m is not None]
     if len(modes) == 0:
-        typer.echo(
-            "Error: one of --to, --what-can-import, or --batch is required.", err=True
-        )
-        raise typer.Exit(code=2)
+        _error("missing_mode",
+               "one of --to, --what-can-import, or --batch is required", 2)
     if len(modes) > 1:
-        typer.echo(
-            "Error: --to, --what-can-import, and --batch are mutually exclusive.", err=True
-        )
-        raise typer.Exit(code=2)
+        _error("ambiguous_mode",
+               "--to, --what-can-import, and --batch are mutually exclusive", 2)
 
     if not (path / ".rubicon").is_file():
-        typer.echo(f"No .rubicon config found in {path}. Run 'rubicon init' first.", err=True)
-        raise typer.Exit(code=3)
+        _error("config_not_found",
+               f"no .rubicon config found in {path} — run 'rubicon init' first", 3)
 
     config = load_config(path)
 
@@ -489,12 +489,22 @@ def preflight(
                 raw = Path(batch).read_text()
             changes = json.loads(raw)
         except (json.JSONDecodeError, OSError) as exc:
-            typer.echo(f"Error reading batch input: {exc}", err=True)
-            raise typer.Exit(code=2)
+            _error("invalid_json", str(exc), 2)
 
         if not isinstance(changes, list):
-            typer.echo("Batch input must be a JSON array.", err=True)
-            raise typer.Exit(code=2)
+            _error("invalid_batch", "batch input must be a JSON array", 2)
+
+        for i, change in enumerate(changes):
+            if not isinstance(change, dict):
+                _error("malformed_batch_entry",
+                       f"item at index {i} must be a JSON object", 2)
+            for field in ("from", "to"):
+                if field not in change:
+                    _error("malformed_batch_entry",
+                           f"item at index {i} is missing required field '{field}'", 2)
+                if not isinstance(change[field], str) or not change[field].strip():
+                    _error("malformed_batch_entry",
+                           f"item at index {i}: field '{field}' must be a non-empty string", 2)
 
         result = check_batch(changes, config, path, full=full)
         typer.echo(json.dumps(result.to_dict(), indent=2))

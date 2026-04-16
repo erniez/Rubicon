@@ -126,10 +126,9 @@ class TestResolveImportTarget:
         (tmp_path / "domain" / "models.py").write_text("")
 
         path, layer = resolve_import_target("./models", tmp_path, config)
-        # Falls back to path-based classification since relative can't be rooted
-        # without knowing caller location — but "models" alone won't match domain/
-        # So this tests the fallback: no match returns (None, None)
-        assert path is None or layer is None or isinstance(layer, str)
+        # Relative import can't be rooted without knowing caller location.
+        # "models" alone won't match any layer directory prefix, so falls back to (None, None).
+        assert (path, layer) == (None, None)
 
     def test_fallback_to_raw_path_classification(self) -> None:
         # No files on disk at all — resolve_import_target falls back to
