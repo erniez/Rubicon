@@ -27,10 +27,10 @@ def apply_layers(
     """
     for node_id in graph.nodes:
         node_path = str(graph.nodes[node_id].get("file_path", node_id))
-        graph.nodes[node_id]["layer"] = _classify(node_path, layer_map, layer_patterns)
+        graph.nodes[node_id]["layer"] = classify_path(node_path, layer_map, layer_patterns)
 
 
-def _classify(
+def classify_path(
     file_path: str,
     layer_map: dict[str, list[str]],
     layer_patterns: dict[str, list[str]] | None = None,

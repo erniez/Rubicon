@@ -99,24 +99,24 @@ def _resolve_target(graph: nx.DiGraph, rel: Relationship) -> str:
     if rel.type == RelationshipType.IMPORT:
         # Try common path resolutions
         target = rel.target
-        for candidate in _import_path_candidates(target):
+        for candidate in import_path_candidates(target):
             if candidate in graph:
                 return candidate
     return rel.target
 
 
-def _import_path_candidates(module: str) -> list[str]:
+def import_path_candidates(module: str) -> list[str]:
     """Generate possible file paths for a module import string."""
     candidates: list[str] = []
 
     # Handle @/ path alias (commonly mapped to src/ in tsconfig)
     if module.startswith("@/"):
         alias_path = "src/" + module[2:]
-        candidates.extend(_path_variants(alias_path))
+        candidates.extend(path_variants(alias_path))
 
     # Convert dotted module to path: "foo.bar" -> "foo/bar"
     path_base = module.replace(".", "/")
-    candidates.extend(_path_variants(path_base))
+    candidates.extend(path_variants(path_base))
 
     # Try progressively stripping leading path segments.
     # Java/Kotlin imports use full package paths (com/example/data/Repo)
@@ -124,17 +124,17 @@ def _import_path_candidates(module: str) -> list[str]:
     parts = path_base.split("/")
     for i in range(1, len(parts)):
         sub = "/".join(parts[i:])
-        candidates.extend(_path_variants(sub))
+        candidates.extend(path_variants(sub))
 
     # Handle relative imports: "./foo" -> "foo"
     if module.startswith("./") or module.startswith("../"):
         clean = module.lstrip("./")
-        candidates.extend(_path_variants(clean))
+        candidates.extend(path_variants(clean))
 
     return candidates
 
 
-def _path_variants(base: str) -> list[str]:
+def path_variants(base: str) -> list[str]:
     """Generate file extension variants for a base path."""
     return [
         f"{base}.py",
