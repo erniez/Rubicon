@@ -184,6 +184,58 @@ def _path_looks_like_abstraction(target: str) -> bool:
     return False
 
 
+def get_allowed_imports(
+    source: str,
+    config: RubiconConfig,
+    root: Path,
+) -> AllowedImportsResult:
+    """Query which layers a source file is allowed to import from.
+
+    For each layer in config.flat_layer_order, simulates an import from the
+    source to a probe path in that layer and checks whether it would be allowed.
+
+    Layers with no directories (patterns-only) cannot be probed and are reported
+    as forbidden with reason "patterns_only_layer".
+
+    Args:
+        source: Source file path (need not exist on disk).
+        config: Loaded .rubicon configuration.
+        root: Project root for import resolution.
+
+    Returns:
+        AllowedImportsResult with allowed_layers and forbidden_layers.
+    """
+    source_layer = classify_path(source, config)
+
+    allowed: list[str] = []
+    forbidden: list[dict] = []
+
+    for layer in config.flat_layer_order:
+        layer_config = config.layers.get(layer)
+
+        # Patterns-only layers can't be probed via a directory path
+        if layer_config is None or not layer_config.directories:
+            forbidden.append({"layer": layer, "reason": "patterns_only_layer"})
+            continue
+
+        # Construct a synthetic probe path that will classify to this layer
+        probe = layer_config.directories[0].rstrip("/") + "/__probe__.py"
+        result = check_fast(source, probe, "import", config, root)
+
+        if result.allowed:
+            allowed.append(layer)
+        else:
+            reason = result.violations[0].rule if result.violations else "unknown"
+            forbidden.append({"layer": layer, "reason": reason})
+
+    return AllowedImportsResult(
+        source=source,
+        source_layer=source_layer,
+        allowed_layers=tuple(allowed),
+        forbidden_layers=tuple(forbidden),
+    )
+
+
 def _load_or_build_graph(config: RubiconConfig, root: Path) -> nx.DiGraph:
     """Return the dependency graph, loading from cache when valid."""
     from rubicon.crawler.scanner import scan

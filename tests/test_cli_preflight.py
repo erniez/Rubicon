@@ -108,3 +108,82 @@ class TestPreflightSingleCheck:
             "--to", "services/order.py",
         ])
         assert code == 3
+
+
+# ── --what-can-import mode ────────────────────────────────────────────────────
+
+
+class TestPreflightWhatCanImport:
+    def test_exits_zero(self) -> None:
+        code, _ = _invoke([
+            "preflight", str(MULTILAYER),
+            "--from", "services/order.py",
+            "--what-can-import", "services/order.py",
+        ])
+        assert code == 0
+
+    def test_output_has_required_fields(self) -> None:
+        _, data = _invoke([
+            "preflight", str(MULTILAYER),
+            "--from", "services/order.py",
+            "--what-can-import", "services/order.py",
+        ])
+        for field in ("source", "source_layer", "allowed_layers", "forbidden_layers"):
+            assert field in data
+
+    def test_services_can_import_domain_and_foundation(self) -> None:
+        _, data = _invoke([
+            "preflight", str(MULTILAYER),
+            "--from", "services/order.py",
+            "--what-can-import", "services/order.py",
+        ])
+        assert "domain" in data["allowed_layers"]
+        assert "foundation" in data["allowed_layers"]
+
+    def test_services_cannot_import_presentation(self) -> None:
+        _, data = _invoke([
+            "preflight", str(MULTILAYER),
+            "--from", "services/order.py",
+            "--what-can-import", "services/order.py",
+        ])
+        forbidden_names = [f["layer"] for f in data["forbidden_layers"]]
+        assert "presentation" in forbidden_names
+
+    def test_foundation_appears_in_allowed_for_any_source(self) -> None:
+        for source in ["ui/screen.py", "services/order.py", "domain/model.py"]:
+            _, data = _invoke([
+                "preflight", str(MULTILAYER),
+                "--from", source,
+                "--what-can-import", source,
+            ])
+            assert "foundation" in data["allowed_layers"], \
+                f"foundation not in allowed_layers for source={source}"
+
+    def test_presentation_cannot_skip_to_domain(self) -> None:
+        # presentation → domain skips services; should be forbidden
+        _, data = _invoke([
+            "preflight", str(MULTILAYER),
+            "--from", "ui/screen.py",
+            "--what-can-import", "ui/screen.py",
+        ])
+        forbidden_names = [f["layer"] for f in data["forbidden_layers"]]
+        assert "domain" in forbidden_names
+
+    def test_source_layer_populated(self) -> None:
+        _, data = _invoke([
+            "preflight", str(MULTILAYER),
+            "--from", "services/order.py",
+            "--what-can-import", "services/order.py",
+        ])
+        assert data["source_layer"] == "services"
+
+    def test_unclassified_source_returns_null_layer(self, tmp_path: Path) -> None:
+        (tmp_path / ".rubicon").write_text(
+            "layers:\n  domain:\n    directories: [domain/]\nlayer_order: [domain]\nrules: []\n"
+        )
+        _, data = _invoke([
+            "preflight", str(tmp_path),
+            "--from", "unknown/file.py",
+            "--what-can-import", "unknown/file.py",
+        ])
+        assert data["source_layer"] is None
