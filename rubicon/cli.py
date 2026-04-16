@@ -174,6 +174,9 @@ def analyze(
 
     apply_layers(graph, config.layer_map, config.layer_patterns)
 
+    from rubicon.graph.cache import save_graph_cache
+    save_graph_cache(graph, path)
+
     violations = run_rules(graph, config)
 
     # Snapshot: diff against previous if requested
@@ -265,6 +268,10 @@ def check(
         raise typer.Exit(code=1)
 
     apply_layers(graph, config.layer_map, config.layer_patterns)
+
+    from rubicon.graph.cache import save_graph_cache
+    save_graph_cache(graph, path)
+
     violations = run_rules(graph, config)
 
     severity_threshold = _parse_severity(fail_on)

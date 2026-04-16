@@ -118,3 +118,10 @@ class TestExport:
         assert svg_path.exists()
         content = svg_path.read_text()
         assert "<svg" in content
+
+    def test_analyze_writes_graph_cache(self, tmp_path: Path) -> None:
+        """Running analyze should write a graph cache for subsequent preflight use."""
+        _write_project(tmp_path)
+        result = runner.invoke(app, ["analyze", str(tmp_path)])
+        assert result.exit_code in (0, 1)  # violations don't matter
+        assert (tmp_path / ".rubicon_data" / "graph_cache.json").is_file()
