@@ -80,6 +80,18 @@ def main(
         console.print("      --fail-on [dim]<severity>[/dim]    Minimum severity to fail: error, warning (default), info")
         console.print()
 
+        console.print("  [bold cyan]rubicon preflight[/bold cyan] [dim]\\[path][/dim]")
+        console.print("    Pre-flight import validation — check proposed imports before writing code.")
+        console.print("    Designed for AI coding agents. Always outputs JSON.")
+        console.print()
+        console.print("      --from [dim]<file>[/dim]           Source file path (required)")
+        console.print("      --to [dim]<import>[/dim]           Target import string → single check")
+        console.print("      --what-can-import [dim]<file>[/dim] Query allowed/forbidden layers")
+        console.print("      --batch [dim]<file|->[/dim]        Validate multiple changes at once")
+        console.print("      --type [dim]<import|inheritance>[/dim] Relationship type (default: import)")
+        console.print("      --full                  Include cycle detection (loads graph)")
+        console.print()
+
         raise typer.Exit()
 
 
@@ -387,6 +399,106 @@ def init(
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False))
     typer.echo(f"\nConfig written to {config_path}")
     typer.echo("Run 'rubicon analyze .' to see your architecture.")
+
+
+@app.command()
+def preflight(
+    path: Path = typer.Argument(
+        ".",
+        help="Project root containing .rubicon config (default: cwd).",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+    from_file: str = typer.Option(
+        ..., "--from", "-f", help="Source file path (relative to project root)."
+    ),
+    to_import: str = typer.Option(
+        None, "--to", "-t", help="Target import string (file path or module name)."
+    ),
+    rel_type: str = typer.Option(
+        "import", "--type", help="Relationship type: import (default) or inheritance."
+    ),
+    full: bool = typer.Option(
+        False, "--full", help="Enable cycle detection (loads or builds the dependency graph)."
+    ),
+    what_can_import: str = typer.Option(
+        None, "--what-can-import", help="Query which layers this file may import from."
+    ),
+    batch: str = typer.Option(
+        None, "--batch", help="Path to a JSON file of changes, or '-' to read from stdin."
+    ),
+) -> None:
+    """Pre-flight import validation for AI coding agents.
+
+    Check whether a proposed import or inheritance relationship is allowed
+    by the architectural rules defined in .rubicon, before writing any code.
+
+    Exit codes: 0=allowed, 1=violation, 2=unclassifiable/input error, 3=config not found.
+    """
+    import json
+    import sys
+
+    from rubicon.preflight.checker import check_fast, check_full
+
+    # Validate mutually exclusive modes
+    modes = [m for m in [to_import, what_can_import, batch] if m is not None]
+    if len(modes) == 0:
+        typer.echo(
+            "Error: one of --to, --what-can-import, or --batch is required.", err=True
+        )
+        raise typer.Exit(code=2)
+    if len(modes) > 1:
+        typer.echo(
+            "Error: --to, --what-can-import, and --batch are mutually exclusive.", err=True
+        )
+        raise typer.Exit(code=2)
+
+    if not (path / ".rubicon").is_file():
+        typer.echo(f"No .rubicon config found in {path}. Run 'rubicon init' first.", err=True)
+        raise typer.Exit(code=3)
+
+    config = load_config(path)
+
+    # ── single check ──────────────────────────────────────────────────────────
+    if to_import is not None:
+        checker = check_full if full else check_fast
+        result = checker(from_file, to_import, rel_type, config, path)
+
+        typer.echo(json.dumps(result.to_dict(), indent=2))
+
+        if result.source_layer is None or result.target_layer is None:
+            raise typer.Exit(code=2)
+        raise typer.Exit(code=0 if result.allowed else 1)
+
+    # ── what-can-import ───────────────────────────────────────────────────────
+    if what_can_import is not None:
+        from rubicon.preflight.checker import get_allowed_imports
+        result = get_allowed_imports(what_can_import, config, path)
+        typer.echo(json.dumps(result.to_dict(), indent=2))
+        raise typer.Exit(code=0)
+
+    # ── batch ─────────────────────────────────────────────────────────────────
+    if batch is not None:
+        from rubicon.preflight.checker import check_batch
+
+        try:
+            if batch == "-":
+                raw = sys.stdin.read()
+            else:
+                raw = Path(batch).read_text()
+            changes = json.loads(raw)
+        except (json.JSONDecodeError, OSError) as exc:
+            typer.echo(f"Error reading batch input: {exc}", err=True)
+            raise typer.Exit(code=2)
+
+        if not isinstance(changes, list):
+            typer.echo("Batch input must be a JSON array.", err=True)
+            raise typer.Exit(code=2)
+
+        result = check_batch(changes, config, path, full=full)
+        typer.echo(json.dumps(result.to_dict(), indent=2))
+        raise typer.Exit(code=0 if result.all_allowed else 1)
 
 
 def _parse_layer_order(raw: str) -> list[str | list[str]]:
