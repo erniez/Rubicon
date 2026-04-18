@@ -64,3 +64,11 @@ testpaths = ["tests"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+[[tool.mypy.overrides]]
+module = [
+    "networkx",
+    "networkx.*",
+    "yaml",
+]
+ignore_missing_imports = true

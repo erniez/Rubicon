@@ -1,6 +1,7 @@
 """Compare two snapshots and produce a structured diff."""
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from rubicon.snapshot.models import Snapshot
 
@@ -9,12 +10,12 @@ from rubicon.snapshot.models import Snapshot
 class SnapshotDiff:
     """Structured difference between two snapshots."""
 
-    added_edges: list[dict] = field(default_factory=list)
-    removed_edges: list[dict] = field(default_factory=list)
+    added_edges: list[dict[str, Any]] = field(default_factory=list)
+    removed_edges: list[dict[str, Any]] = field(default_factory=list)
     added_nodes: list[str] = field(default_factory=list)
     removed_nodes: list[str] = field(default_factory=list)
-    new_violations: list[dict] = field(default_factory=list)
-    resolved_violations: list[dict] = field(default_factory=list)
+    new_violations: list[dict[str, Any]] = field(default_factory=list)
+    resolved_violations: list[dict[str, Any]] = field(default_factory=list)
     summary: str = ""
 
 
@@ -63,11 +64,11 @@ def diff_snapshots(
     curr_viol_lookup = _violation_lookup(current.violations)
     prev_viol_lookup = _violation_lookup(previous.violations)
 
-    for key in sorted(new_viol_keys):
-        diff.new_violations.append(curr_viol_lookup[key])
+    for viol_key in sorted(new_viol_keys, key=lambda k: (k[0], k[1], k[2] or "")):
+        diff.new_violations.append(curr_viol_lookup[viol_key])
 
-    for key in sorted(resolved_viol_keys):
-        diff.resolved_violations.append(prev_viol_lookup[key])
+    for viol_key in sorted(resolved_viol_keys, key=lambda k: (k[0], k[1], k[2] or "")):
+        diff.resolved_violations.append(prev_viol_lookup[viol_key])
 
     diff.summary = _build_summary(diff)
     return diff
@@ -87,7 +88,7 @@ def _edge_key(source: str, target: str, rel_type: str) -> tuple[str, str, str]:
     return (source, target, rel_type)
 
 
-def _edge_keys(edges: list[dict]) -> set[tuple[str, str, str]]:
+def _edge_keys(edges: list[dict[str, Any]]) -> set[tuple[str, str, str]]:
     """Extract unique edge keys from a list of serialized edges."""
     keys: set[tuple[str, str, str]] = set()
     for edge in edges:
@@ -100,9 +101,9 @@ def _edge_keys(edges: list[dict]) -> set[tuple[str, str, str]]:
     return keys
 
 
-def _edge_lookup(edges: list[dict]) -> dict[tuple[str, str, str], dict]:
+def _edge_lookup(edges: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict[str, Any]]:
     """Build a lookup from edge key to the full edge dict."""
-    lookup: dict[tuple[str, str, str], dict] = {}
+    lookup: dict[tuple[str, str, str], dict[str, Any]] = {}
     for edge in edges:
         for rel in edge.get("relationships", []):
             key = _edge_key(edge["source"], edge["target"], rel["type"])
@@ -113,17 +114,17 @@ def _edge_lookup(edges: list[dict]) -> dict[tuple[str, str, str], dict]:
     return lookup
 
 
-def _violation_key(v: dict) -> tuple[str, str, str | None]:
+def _violation_key(v: dict[str, Any]) -> tuple[str, str, str | None]:
     return (v["rule"], v["source_node_id"], v.get("target_node_id"))
 
 
-def _violation_keys(violations: list[dict]) -> set[tuple[str, str, str | None]]:
+def _violation_keys(violations: list[dict[str, Any]]) -> set[tuple[str, str, str | None]]:
     return {_violation_key(v) for v in violations}
 
 
 def _violation_lookup(
-    violations: list[dict],
-) -> dict[tuple[str, str, str | None], dict]:
+    violations: list[dict[str, Any]],
+) -> dict[tuple[str, str, str | None], dict[str, Any]]:
     return {_violation_key(v): v for v in violations}
 
 

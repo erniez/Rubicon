@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -33,7 +34,7 @@ def load_config(root: Path) -> RubiconConfig:
     return _parse_config(raw)
 
 
-def _parse_config(raw: dict) -> RubiconConfig:
+def _parse_config(raw: dict[str, Any]) -> RubiconConfig:
     """Parse a raw YAML dict into a RubiconConfig."""
     config = RubiconConfig()
 

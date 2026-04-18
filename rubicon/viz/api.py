@@ -8,6 +8,7 @@ DiGraph, a RubiconConfig, a list of Violations, and an optional SnapshotDiff.
 from __future__ import annotations
 
 from collections import Counter
+from typing import Any
 
 import networkx as nx
 
@@ -23,7 +24,7 @@ def layer_summary(
     graph: nx.DiGraph,
     config: RubiconConfig,
     violations: list[Violation],
-) -> dict:
+) -> dict[str, Any]:
     """Level 1 data: layers with file counts, inter-layer edges, violations.
 
     Returns a dict with:
@@ -57,7 +58,7 @@ def layer_summary(
     ]
 
     # --- Inter-layer edge counts with relationship breakdowns ---
-    edge_counter: dict[tuple[str, str], Counter] = {}
+    edge_counter: dict[tuple[str, str], Counter[str]] = {}
     for source_id, target_id, data in graph.edges(data=True):
         s_layer = graph.nodes[source_id].get("layer", "unclassified")
         t_layer = graph.nodes[target_id].get("layer", "unclassified")
@@ -113,7 +114,7 @@ def file_level_view(
     layer: str | None = None,
     source_layer: str | None = None,
     target_layer: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Level 2 data: files within the specified layer(s).
 
     If ``layer`` is given, return all files in that single layer and their
@@ -164,10 +165,10 @@ def file_level_view(
     # Cross-layer connections: for single-layer view, summarise edges that
     # leave this layer so the frontend can render "exit arrows" pointing to
     # adjacent layers without showing individual external files.
-    cross_layer: list[dict] = []
+    cross_layer: list[dict[str, Any]] = []
     if layer is not None:
         # Gather outbound + inbound edges to/from external layers
-        ext: dict[str, dict] = {}  # layer_name -> {outbound: {file_ids}, inbound: {file_ids}}
+        ext: dict[str, dict[str, Any]] = {}  # layer_name -> {outbound: {file_ids}, inbound: {file_ids}}
         for source_id, target_id, _data in graph.edges(data=True):
             s_layer = graph.nodes[source_id].get("layer", "unclassified")
             t_layer = graph.nodes[target_id].get("layer", "unclassified")
@@ -206,7 +207,7 @@ def ratsnest_view(
     config: RubiconConfig,
     violations: list[Violation],
     file_id: str,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Level 3 data: the focus node plus all directly connected nodes.
 
     Returns None if the file_id doesn't exist in the graph.
@@ -231,7 +232,7 @@ def ratsnest_view(
 
     neighbor_ids: set[str] = set()
     neighbor_direction: dict[str, str] = {}  # node_id -> "inbound" | "outbound" | "both"
-    edges_list: list[dict] = []
+    edges_list: list[dict[str, Any]] = []
 
     # Outbound edges
     for _, target_id, data in graph.out_edges(file_id, data=True):
@@ -283,7 +284,7 @@ def ratsnest_view(
 # Diff Overlay
 # ---------------------------------------------------------------------------
 
-def diff_overlay(diff: SnapshotDiff | None, graph: nx.DiGraph | None = None) -> dict:
+def diff_overlay(diff: SnapshotDiff | None, graph: nx.DiGraph | None = None) -> dict[str, Any]:
     """Overlay data for any view level.
 
     Returns an empty overlay when diff is None (no diff mode).
@@ -365,7 +366,7 @@ def _display_name(layer: str, config: RubiconConfig) -> str:
     return layer
 
 
-def _serialize_nodes(graph: nx.DiGraph, node_ids: set[str]) -> list[dict]:
+def _serialize_nodes(graph: nx.DiGraph, node_ids: set[str]) -> list[dict[str, Any]]:
     """Serialize a subset of graph nodes."""
     nodes = []
     for nid in sorted(node_ids):
@@ -380,7 +381,7 @@ def _serialize_nodes(graph: nx.DiGraph, node_ids: set[str]) -> list[dict]:
     return nodes
 
 
-def _serialize_edge(data: dict, source_id: str, target_id: str) -> dict:
+def _serialize_edge(data: dict[str, Any], source_id: str, target_id: str) -> dict[str, Any]:
     """Serialize a single edge with its relationships."""
     rels = []
     for rel in data.get("relationships", []):
@@ -397,9 +398,9 @@ def _serialize_edge(data: dict, source_id: str, target_id: str) -> dict:
     }
 
 
-def _serialize_violation(v: Violation) -> dict:
+def _serialize_violation(v: Violation) -> dict[str, Any]:
     """Serialize a violation for the API response."""
-    result: dict = {
+    result: dict[str, Any] = {
         "rule": v.rule,
         "severity": v.severity.value,
         "source_node_id": v.source_node_id,
@@ -416,12 +417,12 @@ def _filter_violations(
     violations: list[Violation],
     node_ids: set[str],
     focus_id: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Filter and serialize violations involving the given node IDs.
 
     If focus_id is provided, at least one of source/target must be focus_id.
     """
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     for v in violations:
         involved = v.source_node_id in node_ids
         if v.target_node_id is not None:

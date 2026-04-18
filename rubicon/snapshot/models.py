@@ -3,10 +3,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import networkx as nx
 
-from rubicon.models import RubiconConfig, RelationshipType, Severity, Violation
+from rubicon.models import RubiconConfig, Relationship, RelationshipType, Severity, Violation
 
 
 @dataclass
@@ -15,9 +16,9 @@ class Snapshot:
 
     timestamp: datetime
     commit_hash: str | None
-    nodes: list[dict] = field(default_factory=list)
-    edges: list[dict] = field(default_factory=list)
-    violations: list[dict] = field(default_factory=list)
+    nodes: list[dict[str, Any]] = field(default_factory=list)
+    edges: list[dict[str, Any]] = field(default_factory=list)
+    violations: list[dict[str, Any]] = field(default_factory=list)
     layer_map: dict[str, str] = field(default_factory=dict)
 
 
@@ -28,7 +29,7 @@ def graph_to_snapshot(
     commit_hash: str | None = None,
 ) -> Snapshot:
     """Create a snapshot from the current graph state."""
-    nodes: list[dict] = []
+    nodes: list[dict[str, Any]] = []
     for node_id, attrs in graph.nodes(data=True):
         nodes.append({
             "id": node_id,
@@ -38,7 +39,7 @@ def graph_to_snapshot(
             "symbols": list(attrs.get("symbols", [])),
         })
 
-    edges: list[dict] = []
+    edges: list[dict[str, Any]] = []
     for source_id, target_id, data in graph.edges(data=True):
         rels = []
         for rel in data.get("relationships", []):
@@ -65,7 +66,7 @@ def graph_to_snapshot(
     )
 
 
-def snapshot_to_dict(snapshot: Snapshot) -> dict:
+def snapshot_to_dict(snapshot: Snapshot) -> dict[str, Any]:
     """Serialize a Snapshot to a JSON-safe dict."""
     return {
         "timestamp": snapshot.timestamp.isoformat(),
@@ -77,7 +78,7 @@ def snapshot_to_dict(snapshot: Snapshot) -> dict:
     }
 
 
-def dict_to_snapshot(data: dict) -> Snapshot:
+def dict_to_snapshot(data: dict[str, Any]) -> Snapshot:
     """Deserialize a dict back into a Snapshot."""
     return Snapshot(
         timestamp=datetime.fromisoformat(data["timestamp"]),
@@ -89,7 +90,7 @@ def dict_to_snapshot(data: dict) -> Snapshot:
     )
 
 
-def _serialize_relationship(rel) -> dict:
+def _serialize_relationship(rel: Relationship) -> dict[str, Any]:
     """Serialize a Relationship to a JSON-safe dict."""
     return {
         "source": rel.source,
@@ -100,9 +101,9 @@ def _serialize_relationship(rel) -> dict:
     }
 
 
-def _serialize_violation(v: Violation) -> dict:
+def _serialize_violation(v: Violation) -> dict[str, Any]:
     """Serialize a Violation to a JSON-safe dict."""
-    result: dict = {
+    result: dict[str, Any] = {
         "rule": v.rule,
         "severity": v.severity.value,
         "source_node_id": v.source_node_id,

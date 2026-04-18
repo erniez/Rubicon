@@ -75,7 +75,7 @@ app = FastAPI(title="Rubicon Visualization Server")
 # --- API endpoints --------------------------------------------------------
 
 @app.get("/api/layers")
-def api_layers() -> dict:
+def api_layers() -> dict[str, Any]:
     """Level 1 — layer summary."""
     graph, config, violations = _require_state()
     return layer_summary(graph, config, violations)
@@ -86,7 +86,7 @@ def api_files(
     layer: str | None = None,
     source_layer: str | None = None,
     target_layer: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Level 2 — file-level view.
 
     Query params:
@@ -103,7 +103,7 @@ def api_files(
 
 
 @app.get("/api/file/{file_id:path}")
-def api_file(file_id: str) -> dict:
+def api_file(file_id: str) -> dict[str, Any]:
     """Level 3 — ratsnest view for a single file."""
     graph, config, violations = _require_state()
     result = ratsnest_view(graph, config, violations, file_id)
@@ -113,13 +113,13 @@ def api_file(file_id: str) -> dict:
 
 
 @app.get("/api/diff")
-def api_diff() -> dict:
+def api_diff() -> dict[str, Any]:
     """Diff overlay data (empty if no diff mode)."""
     return diff_overlay(_diff, graph=_graph)
 
 
 @app.get("/api/snapshots")
-def api_snapshots() -> dict:
+def api_snapshots() -> dict[str, Any]:
     """List available snapshots for the project."""
     if _project_root is None:
         return {"snapshots": []}
@@ -139,7 +139,7 @@ def api_snapshots() -> dict:
 
 
 @app.get("/api/config")
-def api_config() -> dict:
+def api_config() -> dict[str, Any]:
     """Layer colors, layer order, and rule names."""
     _, config, _ = _require_state()
 
@@ -224,7 +224,7 @@ def start_server(
     # Graceful shutdown on Ctrl+C
     original_sigint = signal.getsignal(signal.SIGINT)
 
-    def _shutdown(sig, frame):
+    def _shutdown(sig: int, frame: object) -> None:
         print("\nStopping Rubicon server.")
         signal.signal(signal.SIGINT, original_sigint)
         raise KeyboardInterrupt
