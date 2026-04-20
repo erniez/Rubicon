@@ -120,17 +120,17 @@ def no_circular_ownership(
     graph: nx.DiGraph, config: RubiconConfig
 ) -> list[Violation]:
     """Detect cycles in ownership edges using DFS cycle detection."""
-    return _detect_cycles(graph, RelationshipType.OWNERSHIP, "no_circular_ownership", Severity.ERROR, "Circular ownership")
+    return detect_cycles(graph, RelationshipType.OWNERSHIP, "no_circular_ownership", Severity.ERROR, "Circular ownership")
 
 
 def no_circular_imports(
     graph: nx.DiGraph, config: RubiconConfig
 ) -> list[Violation]:
     """Detect cycles in import edges using DFS cycle detection."""
-    return _detect_cycles(graph, RelationshipType.IMPORT, "no_circular_imports", Severity.WARNING, "Circular import")
+    return detect_cycles(graph, RelationshipType.IMPORT, "no_circular_imports", Severity.WARNING, "Circular import")
 
 
-def _detect_cycles(
+def detect_cycles(
     graph: nx.DiGraph,
     rel_type: RelationshipType,
     rule_name: str,
@@ -202,7 +202,7 @@ def single_responsibility(
     return violations
 
 
-_ABSTRACTION_INDICATORS = frozenset({
+ABSTRACTION_INDICATORS = frozenset({
     "abstract", "base", "protocol", "interface", "contract", "mixin",
     "Abstract", "Base", "Protocol", "Interface", "Contract", "Mixin",
     "I",  # Common C#/Java convention: IRepository, IService
@@ -219,10 +219,10 @@ def _looks_like_abstraction(node_id: str, graph: nx.DiGraph) -> bool:
         for part in parts:
             # Split CamelCase: "AbstractUserRepo" -> ["Abstract", "User", "Repo"]
             # Also check if the whole part matches
-            if part in _ABSTRACTION_INDICATORS:
+            if part in ABSTRACTION_INDICATORS:
                 return True
             # Check if the name starts or ends with an indicator
-            for indicator in _ABSTRACTION_INDICATORS:
+            for indicator in ABSTRACTION_INDICATORS:
                 if len(part) > len(indicator) and (
                     part.startswith(indicator) or part.endswith(indicator)
                 ):

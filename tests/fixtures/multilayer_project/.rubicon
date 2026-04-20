@@ -1,0 +1,34 @@
+layers:
+  presentation:
+    directories:
+      - ui/
+    color: "#4A90D9"
+  services:
+    directories:
+      - services/
+    color: "#50C878"
+  domain:
+    directories:
+      - domain/
+    color: "#E8A838"
+  foundation:
+    directories:
+      - foundation/
+    color: "#9B59B6"
+
+layer_order:
+  - presentation
+  - services
+  - domain
+  - foundation
+
+foundation_layers:
+  - foundation
+
+rules:
+  - no_upward_dependency
+  - no_layer_skipping
+  - inheritance_flows_downward
+  - no_circular_imports
+  - dependency_inversion
+  - single_responsibility

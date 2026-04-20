@@ -173,3 +173,15 @@ class TestCheckCommand:
         runner.invoke(app, ["check", str(tmp_path)])
         snapshots_dir = tmp_path / ".rubicon" / "snapshots"
         assert not snapshots_dir.exists()
+
+    def test_check_writes_graph_cache(self, tmp_path: Path) -> None:
+        """Running check should write a graph cache for subsequent preflight use."""
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "main.py").write_text("x = 1\n")
+        (tmp_path / ".rubicon").write_text(
+            "layers: {}\nlayer_order: []\nrules: []\n"
+        )
+
+        runner.invoke(app, ["check", str(tmp_path)])
+        assert (tmp_path / ".rubicon_data" / "graph_cache.json").is_file()
